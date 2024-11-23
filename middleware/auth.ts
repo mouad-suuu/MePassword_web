@@ -11,9 +11,9 @@ export async function validateAuthToken(request: NextRequest) {
   }
 
   const token = authHeader.split(" ")[1];
-
+  const authToken = process.env.AUTH_TOKEN;
   // Compare with stored hash
-  if (token !== "test_hash_123") {
+  if (token !== authToken) {
     return {
       error: "Invalid authentication token",
       status: 403,
