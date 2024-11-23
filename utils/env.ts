@@ -1,5 +1,5 @@
 export function validateEnv() {
-  const requiredEnvVars = ["AUTH_KEY_HASH", "JWT_SECRET", "ENCRYPTION_KEY"];
+  const requiredEnvVars = ["AUTH_KEY_HASH"];
 
   const missingVars = requiredEnvVars.filter((envVar) => !process.env[envVar]);
 
