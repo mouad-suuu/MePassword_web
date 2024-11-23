@@ -1,4 +1,5 @@
-import { kv } from "@vercel/kv";
+import { promises as fs } from "fs";
+import path from "path";
 import { AuditLog, EncryptedPassword, APISettingsPayload } from "../types";
 
 interface Storage {
@@ -8,26 +9,23 @@ interface Storage {
   settings: APISettingsPayload;
 }
 
-const STORAGE_KEYS = {
-  PASSWORDS: "passwords",
-  KEYS: "keys",
-  AUDIT_LOGS: "auditLogs",
-  SETTINGS: "settings",
-} as const;
+const STORAGE_PATH = path.join(process.cwd(), "data", "storage.json");
 
 async function ensureStorageExists() {
   try {
-    // Check if storage is initialized
-    const initialized = await kv.get("initialized");
-    if (!initialized) {
-      // Initialize storage with empty values
-      await Promise.all([
-        kv.set(STORAGE_KEYS.PASSWORDS, []),
-        kv.set(STORAGE_KEYS.KEYS, []),
-        kv.set(STORAGE_KEYS.AUDIT_LOGS, []),
-        kv.set(STORAGE_KEYS.SETTINGS, null),
-        kv.set("initialized", true),
-      ]);
+    await fs.mkdir(path.join(process.cwd(), "data"), { recursive: true });
+    try {
+      await fs.access(STORAGE_PATH);
+    } catch {
+      await fs.writeFile(
+        STORAGE_PATH,
+        JSON.stringify({
+          passwords: [],
+          keys: [],
+          auditLogs: [],
+          settings: null,
+        })
+      );
     }
   } catch (error) {
     console.error("Failed to initialize storage:", error);
@@ -37,31 +35,11 @@ async function ensureStorageExists() {
 
 export async function readStorage(): Promise<Storage> {
   await ensureStorageExists();
-
-  // Fetch all data in parallel
-  const [passwords, keys, auditLogs, settings] = await Promise.all([
-    kv.get<EncryptedPassword[]>(STORAGE_KEYS.PASSWORDS) || [],
-    kv.get<EncryptedPassword[]>(STORAGE_KEYS.KEYS) || [],
-    kv.get<AuditLog[]>(STORAGE_KEYS.AUDIT_LOGS) || [],
-    kv.get<APISettingsPayload>(STORAGE_KEYS.SETTINGS),
-  ]);
-
-  return {
-    passwords: passwords || [],
-    keys: keys || [],
-    auditLogs: auditLogs || [],
-    settings: settings || ({} as APISettingsPayload),
-  };
+  const data = await fs.readFile(STORAGE_PATH, "utf-8");
+  return JSON.parse(data);
 }
 
 export async function writeStorage(data: Storage): Promise<void> {
   await ensureStorageExists();
-
-  // Update all data in parallel
-  await Promise.all([
-    kv.set(STORAGE_KEYS.PASSWORDS, data.passwords),
-    kv.set(STORAGE_KEYS.KEYS, data.keys),
-    kv.set(STORAGE_KEYS.AUDIT_LOGS, data.auditLogs),
-    kv.set(STORAGE_KEYS.SETTINGS, data.settings),
-  ]);
+  await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2));
 }
