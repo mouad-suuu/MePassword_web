@@ -1,5 +1,4 @@
-import { promises as fs } from "fs";
-import path from "path";
+import { createClient } from "@vercel/edge-config";
 import { AuditLog, EncryptedPassword, APISettingsPayload } from "../types";
 
 interface Storage {
@@ -9,37 +8,52 @@ interface Storage {
   settings: APISettingsPayload;
 }
 
-const STORAGE_PATH = path.join(process.cwd(), "data", "storage.json");
+const defaultStorage: Storage = {
+  passwords: [],
+  keys: [],
+  auditLogs: [],
+  settings: {} as APISettingsPayload,
+};
 
-async function ensureStorageExists() {
+const client = createClient(process.env.EDGE_CONFIG);
+
+export async function readStorage(): Promise<Storage> {
   try {
-    await fs.mkdir(path.join(process.cwd(), "data"), { recursive: true });
-    try {
-      await fs.access(STORAGE_PATH);
-    } catch {
-      await fs.writeFile(
-        STORAGE_PATH,
-        JSON.stringify({
-          passwords: [],
-          keys: [],
-          auditLogs: [],
-          settings: null,
-        })
-      );
-    }
+    const data = (await client.get("storage")) as Storage;
+    return data || defaultStorage;
   } catch (error) {
-    console.error("Failed to initialize storage:", error);
-    throw error;
+    console.error("Failed to read from Edge Config:", error);
+    return defaultStorage;
   }
 }
 
-export async function readStorage(): Promise<Storage> {
-  await ensureStorageExists();
-  const data = await fs.readFile(STORAGE_PATH, "utf-8");
-  return JSON.parse(data);
-}
-
 export async function writeStorage(data: Storage): Promise<void> {
-  await ensureStorageExists();
-  await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2));
+  try {
+    const response = await fetch(
+      `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${process.env.VERCEL_API_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: [
+            {
+              operation: "upsert",
+              key: "storage",
+              value: data,
+            },
+          ],
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error(`Failed to write to Edge Config: ${response.statusText}`);
+    }
+  } catch (error) {
+    console.error("Failed to write to Edge Config:", error);
+    throw error;
+  }
 }

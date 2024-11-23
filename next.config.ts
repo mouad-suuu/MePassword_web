@@ -25,6 +25,7 @@ const nextConfig: NextConfig = {
 
   env: {
     AUTH_KEY_HASH: process.env.AUTH_KEY_HASH,
+    EDGE_CONFIG: process.env.EDGE_CONFIG,
   },
 };
 
