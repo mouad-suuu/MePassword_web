@@ -10,12 +10,6 @@ export interface InitialSetupData {
   authKey: string;
 }
 
-export type SetupStage =
-  | "initial"
-  | "github-setup"
-  | "app-setup"
-  | "key-generation"
-  | "complete";
 interface EncryptionKeys {
   publicKey: {
     key: string;
