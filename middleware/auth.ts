@@ -11,7 +11,7 @@ export async function validateAuthToken(request: NextRequest) {
   }
 
   const token = authHeader.split(" ")[1];
-  const authToken = process.env.AUTH_TOKEN;
+  const authToken = process.env.AUTH_KEY_HASH;
   // Compare with stored hash
   if (token !== authToken) {
     return {
