@@ -22,6 +22,12 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+
+  env: {
+    AUTH_KEY_HASH: process.env.AUTH_KEY_HASH,
+    JWT_SECRET: process.env.JWT_SECRET,
+    ENCRYPTION_KEY: process.env.ENCRYPTION_KEY,
+  },
 };
 
 export default nextConfig;
