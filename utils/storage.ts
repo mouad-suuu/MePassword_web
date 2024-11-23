@@ -43,12 +43,6 @@ export async function writeStorage(data: Storage): Promise<void> {
       throw new Error("Missing required environment variables");
     }
 
-    console.log("Writing to Edge Config:", {
-      url: `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items`,
-      token: process.env.VERCEL_TOKEN?.slice(0, 5) + "...",
-      data: data,
-    });
-
     const response = await fetch(
       `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items`,
       {
@@ -58,7 +52,13 @@ export async function writeStorage(data: Storage): Promise<void> {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          items: [{ key: "storage", value: data }],
+          items: [
+            {
+              operation: "upsert",
+              key: "storage",
+              value: data,
+            },
+          ],
         }),
       }
     );
