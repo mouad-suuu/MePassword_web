@@ -1,7 +1,6 @@
-import { APISettingsPayload, AuditLog, EncryptedPassword } from "@/types";
-import { PrismaClient } from "@prisma/client";
-
-const prisma = new PrismaClient();
+import { promises as fs } from "fs";
+import path from "path";
+import { AuditLog, EncryptedPassword, APISettingsPayload } from "../types";
 
 interface Storage {
   passwords: EncryptedPassword[];
@@ -10,43 +9,37 @@ interface Storage {
   settings: APISettingsPayload;
 }
 
-export async function readStorage(): Promise<Storage> {
-  try {
-    const [passwords, keys, auditLogs, settings] = await Promise.all([
-      prisma.password.findMany(),
-      prisma.key.findMany(),
-      prisma.auditLog.findMany(),
-      prisma.settings.findFirst(),
-    ]);
+const STORAGE_PATH = path.join(process.cwd(), "data", "storage.json");
 
-    return {
-      passwords,
-      keys,
-      auditLogs,
-      settings: settings || null,
-    };
+async function ensureStorageExists() {
+  try {
+    await fs.mkdir(path.join(process.cwd(), "data"), { recursive: true });
+    try {
+      await fs.access(STORAGE_PATH);
+    } catch {
+      await fs.writeFile(
+        STORAGE_PATH,
+        JSON.stringify({
+          passwords: [],
+          keys: [],
+          auditLogs: [],
+          settings: null,
+        })
+      );
+    }
   } catch (error) {
-    console.error("Database read error:", error);
+    console.error("Failed to initialize storage:", error);
     throw error;
   }
 }
 
+export async function readStorage(): Promise<Storage> {
+  await ensureStorageExists();
+  const data = await fs.readFile(STORAGE_PATH, "utf-8");
+  return JSON.parse(data);
+}
+
 export async function writeStorage(data: Storage): Promise<void> {
-  try {
-    await prisma.$transaction(
-      [
-        prisma.password.deleteMany(),
-        prisma.key.deleteMany(),
-        prisma.auditLog.deleteMany(),
-        prisma.settings.deleteMany(),
-        prisma.password.createMany({ data: data.passwords }),
-        prisma.key.createMany({ data: data.keys }),
-        prisma.auditLog.createMany({ data: data.auditLogs }),
-        data.settings ? prisma.settings.create({ data: data.settings }) : null,
-      ].filter(Boolean)
-    );
-  } catch (error) {
-    console.error("Database write error:", error);
-    throw error;
-  }
+  await ensureStorageExists();
+  await fs.writeFile(STORAGE_PATH, JSON.stringify(data, null, 2));
 }
