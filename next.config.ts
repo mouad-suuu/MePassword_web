@@ -27,6 +27,8 @@ const nextConfig: NextConfig = {
     AUTH_KEY_HASH: process.env.AUTH_KEY_HASH,
     BLOB_READ_WRITE_TOKEN: process.env.BLOB_READ_WRITE_TOKEN,
     EDGE_CONFIG: process.env.EDGE_CONFIG,
+    EDGE_CONFIG_ID: process.env.EDGE_CONFIG_ID,
+    VERCEL_TOKEN: process.env.VERCEL_TOKEN,
   },
 };
 

@@ -1,4 +1,3 @@
-import { createClient } from "@vercel/edge-config";
 import { AuditLog, EncryptedPassword, APISettingsPayload } from "../types";
 
 interface Storage {
@@ -15,12 +14,23 @@ const defaultStorage: Storage = {
   settings: {} as APISettingsPayload,
 };
 
-const client = createClient(process.env.EDGE_CONFIG);
-
 export async function readStorage(): Promise<Storage> {
   try {
-    const data = (await client.get("storage")) as Storage;
-    return data || defaultStorage;
+    const response = await fetch(
+      `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items?key=storage`,
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+        },
+      }
+    );
+
+    if (!response.ok) {
+      throw new Error("Failed to read from Edge Config");
+    }
+
+    const { value } = await response.json();
+    return value || defaultStorage;
   } catch (error) {
     console.error("Failed to read from Edge Config:", error);
     return defaultStorage;
@@ -29,33 +39,26 @@ export async function readStorage(): Promise<Storage> {
 
 export async function writeStorage(data: Storage): Promise<void> {
   try {
-    if (!process.env.EDGE_CONFIG) {
-      throw new Error("Missing EDGE_CONFIG environment variable");
+    if (!process.env.EDGE_CONFIG_ID || !process.env.VERCEL_TOKEN) {
+      throw new Error("Missing required environment variables");
     }
 
-    const response = await fetch(process.env.EDGE_CONFIG, {
-      method: "PATCH",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        items: [
-          {
-            operation: "upsert",
-            key: "storage",
-            value: data,
-          },
-        ],
-      }),
-    });
+    const response = await fetch(
+      `https://api.vercel.com/v1/edge-config/${process.env.EDGE_CONFIG_ID}/items`,
+      {
+        method: "PATCH",
+        headers: {
+          Authorization: `Bearer ${process.env.VERCEL_TOKEN}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          items: [{ key: "storage", value: data }],
+        }),
+      }
+    );
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      throw new Error(
-        `Failed to write to Edge Config: ${response.statusText}${
-          errorData.message ? ` - ${errorData.message}` : ""
-        }`
-      );
+      throw new Error("Failed to write to Edge Config");
     }
   } catch (error) {
     console.error("Failed to write to Edge Config:", error);
