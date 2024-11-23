@@ -29,8 +29,19 @@ export async function readStorage(): Promise<Storage> {
       throw new Error("Failed to read from Edge Config");
     }
 
-    const { value } = await response.json();
-    return value || defaultStorage;
+    const items = await response.json();
+
+    // Find the storage item in the array
+    const storageItem = items.find(
+      (item: { key: string; value: unknown }) => item.key === "storage"
+    );
+
+    if (!storageItem || !storageItem.value) {
+      console.log("No storage data found, returning default");
+      return defaultStorage;
+    }
+
+    return storageItem.value as Storage;
   } catch (error) {
     console.error("Failed to read from Edge Config:", error);
     return defaultStorage;
