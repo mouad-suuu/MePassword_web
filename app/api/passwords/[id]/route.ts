@@ -5,7 +5,7 @@ import { validateAuthToken } from "../../../../middleware/auth";
 
 export async function PUT(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Validate authentication
   const authResult = await validateAuthToken(request);
@@ -18,7 +18,7 @@ export async function PUT(
 
   try {
     const body = await request.json();
-    const id = params.id;
+    const id = (await params).id;
 
     const storage = await readStorage();
     const passwordIndex = storage.passwords.findIndex((p) => p.id === id);
@@ -53,7 +53,7 @@ export async function PUT(
 
 export async function DELETE(
   request: NextRequest,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   // Validate authentication
   const authResult = await validateAuthToken(request);
@@ -66,7 +66,7 @@ export async function DELETE(
 
   try {
     // Await params to access id
-    const { id } = await params;
+    const id = (await params).id;
 
     if (!id) {
       return NextResponse.json(
