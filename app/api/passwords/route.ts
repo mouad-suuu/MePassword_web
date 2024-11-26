@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readStorage, writeStorage } from "../../../utils/storage";
+import { Database } from "../../../utils/database";
 import { EncryptedPassword } from "../../../types";
 import { validateAuthToken } from "../../../middleware/auth";
 
@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    const storage = await readStorage();
-    return NextResponse.json({ passwords: storage.passwords });
+    const passwords = await Database.readPasswords();
+    return NextResponse.json({ passwords });
   } catch {
     return NextResponse.json(
       { error: "Failed to fetch passwords" },
@@ -44,9 +44,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const storage = await readStorage();
-
-    // Add metadata
     const passwordEntry: EncryptedPassword = {
       ...body,
       createdAt: Date.now(),
@@ -55,8 +52,7 @@ export async function POST(request: NextRequest) {
       version: 1,
     };
 
-    storage.passwords.push(passwordEntry);
-    await writeStorage(storage);
+    await Database.writePassword(passwordEntry);
 
     return NextResponse.json({ success: true });
   } catch {
@@ -87,8 +83,8 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const storage = await readStorage();
-    const passwordIndex = storage.passwords.findIndex((p) => p.id === body.id);
+    const passwords = await Database.readPasswords();
+    const passwordIndex = passwords.findIndex((p) => p.id === body.id);
 
     if (passwordIndex === -1) {
       return NextResponse.json(
@@ -99,15 +95,15 @@ export async function PUT(request: NextRequest) {
 
     // Update metadata
     const updatedPassword: EncryptedPassword = {
-      ...storage.passwords[passwordIndex],
+      ...passwords[passwordIndex],
       ...body,
       modifiedAt: Date.now(),
       lastAccessed: Date.now(),
-      version: (storage.passwords[passwordIndex].version || 0) + 1,
+      version: (passwords[passwordIndex].version || 0) + 1,
     };
 
-    storage.passwords[passwordIndex] = updatedPassword;
-    await writeStorage(storage);
+    passwords[passwordIndex] = updatedPassword;
+    await Database.writePassword(passwords[passwordIndex]);
 
     return NextResponse.json({ success: true });
   } catch {
@@ -139,8 +135,8 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    const storage = await readStorage();
-    const passwordIndex = storage.passwords.findIndex((p) => p.id === id);
+    const passwords = await Database.readPasswords();
+    const passwordIndex = passwords.findIndex((p) => p.id === id);
 
     if (passwordIndex === -1) {
       return NextResponse.json(
@@ -149,8 +145,7 @@ export async function DELETE(request: NextRequest) {
       );
     }
 
-    storage.passwords.splice(passwordIndex, 1);
-    await writeStorage(storage);
+    await Database.writePassword(passwords[passwordIndex]);
 
     return NextResponse.json({ success: true });
   } catch {

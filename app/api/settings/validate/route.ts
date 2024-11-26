@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readStorage } from "../../../../utils/storage";
+import { Database } from "../../../../utils/database";
 import { validateAuthToken } from "../../../../middleware/auth";
 
 interface ValidatePasswordPayload {
@@ -36,21 +36,43 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read storage and compare passwords
-    const storage = await readStorage();
+    // Read settings from database
+    const settings = await Database.readSettings();
 
-    if (!storage.settings?.password) {
+    if (!settings?.password) {
       return NextResponse.json(
         { error: "No password configured" },
         { status: 404 }
       );
     }
 
-    const isValid = body.password === storage.settings.password;
+    const isValid = body.password === settings.password;
 
     return NextResponse.json({ isValid });
   } catch (error) {
     console.error("Password validation error:", error);
+
+    // Log the error in audit logs
+    try {
+      await Database.writeAuditLog({
+        id: crypto.randomUUID(),
+        timestamp: Date.now(),
+        action: "login",
+        userId: "unknown", // Or get from authResult if available
+        resourceType: "password",
+        resourceId: "master-password",
+        metadata: {
+          ip: request.headers.get("x-forwarded-for") || "unknown",
+          userAgent: request.headers.get("user-agent") || "unknown",
+          success: false,
+          failureReason:
+            error instanceof Error ? error.message : "Unknown error",
+        },
+      });
+    } catch (logError) {
+      console.error("Failed to log audit entry:", logError);
+    }
+
     return NextResponse.json(
       {
         error: "Internal server error",

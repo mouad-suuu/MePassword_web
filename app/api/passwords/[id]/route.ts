@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readStorage, writeStorage } from "../../../../utils/storage";
+import { Database } from "../../../../utils/database";
 import { EncryptedPassword } from "../../../../types";
 import { validateAuthToken } from "../../../../middleware/auth";
 
@@ -20,8 +20,8 @@ export async function PUT(
     const body = await request.json();
     const id = (await params).id;
 
-    const storage = await readStorage();
-    const passwordIndex = storage.passwords.findIndex((p) => p.id === id);
+    const passwords = await Database.readPasswords();
+    const passwordIndex = passwords.findIndex((p) => p.id === id);
 
     if (passwordIndex === -1) {
       return NextResponse.json(
@@ -32,15 +32,15 @@ export async function PUT(
 
     // Update metadata
     const updatedPassword: EncryptedPassword = {
-      ...storage.passwords[passwordIndex],
+      ...passwords[passwordIndex],
       password: body.password,
       modifiedAt: Date.now(),
       lastAccessed: Date.now(),
-      version: (storage.passwords[passwordIndex].version || 0) + 1,
+      version: (passwords[passwordIndex].version || 0) + 1,
     };
 
-    storage.passwords[passwordIndex] = updatedPassword;
-    await writeStorage(storage);
+    passwords[passwordIndex] = updatedPassword;
+    await Database.writePassword(passwords[passwordIndex]);
 
     return NextResponse.json({ success: true });
   } catch {
@@ -65,7 +65,6 @@ export async function DELETE(
   }
 
   try {
-    // Await params to access id
     const id = (await params).id;
 
     if (!id) {
@@ -75,8 +74,8 @@ export async function DELETE(
       );
     }
 
-    const storage = await readStorage();
-    const passwordIndex = storage.passwords.findIndex((p) => p.id === id);
+    const passwords = await Database.readPasswords();
+    const passwordIndex = passwords.findIndex((p) => p.id === id);
 
     if (passwordIndex === -1) {
       return NextResponse.json(
@@ -85,8 +84,8 @@ export async function DELETE(
       );
     }
 
-    storage.passwords.splice(passwordIndex, 1);
-    await writeStorage(storage);
+    passwords.splice(passwordIndex, 1);
+    await Database.writePassword(passwords[passwordIndex]);
 
     return NextResponse.json({ success: true });
   } catch {

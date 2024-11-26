@@ -1,7 +1,22 @@
+// app/api/settings/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { readStorage, writeStorage } from "../../../utils/storage";
+import { Database } from "../../../utils/database";
 import { validateAuthToken } from "../../../middleware/auth";
 
+let isInitialized = false;
+
+async function initializeDatabaseIfNeeded() {
+  if (!isInitialized) {
+    try {
+      await Database.initDatabase();
+      isInitialized = true;
+      console.log("Database initialized successfully");
+    } catch (error) {
+      console.error("Failed to initialize database:", error);
+      throw error;
+    }
+  }
+}
 interface APISettingsPayload {
   publicKey: string;
   password: string;
@@ -11,6 +26,7 @@ interface APISettingsPayload {
 
 export async function POST(request: NextRequest) {
   try {
+    await initializeDatabaseIfNeeded();
     // Validate authentication
     const authResult = await validateAuthToken(request);
     if ("error" in authResult) {
@@ -60,19 +76,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Read current storage
-    const storage = await readStorage();
-
-    // Update settings
-    storage.settings = {
+    // Write new settings
+    await Database.writeSettings({
       publicKey: body.publicKey,
       password: body.password,
       deviceId: body.deviceId,
       timestamp: body.timestamp,
-    };
-
-    // Write to storage
-    await writeStorage(storage);
+    });
 
     return NextResponse.json({
       success: true,
@@ -92,6 +102,7 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
+    await initializeDatabaseIfNeeded();
     // Validate authentication
     const authResult = await validateAuthToken(request);
     if ("error" in authResult) {
@@ -101,17 +112,17 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Read storage and return settings
-    const storage = await readStorage();
+    // Read settings
+    const settings = await Database.readSettings();
 
-    if (!storage.settings) {
+    if (!settings || Object.keys(settings).length === 0) {
       return NextResponse.json(
         { error: "Settings not found" },
         { status: 404 }
       );
     }
 
-    return NextResponse.json({ settings: storage.settings });
+    return NextResponse.json({ settings });
   } catch (error) {
     console.error("Settings retrieval error:", error);
     return NextResponse.json(
@@ -126,6 +137,7 @@ export async function GET(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    await initializeDatabaseIfNeeded();
     // Validate authentication
     const authResult = await validateAuthToken(request);
     if ("error" in authResult) {
@@ -135,11 +147,11 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Read current storage
-    const storage = await readStorage();
+    // Read current settings
+    const currentSettings = await Database.readSettings();
 
     // Check if settings exist
-    if (!storage.settings) {
+    if (!currentSettings || Object.keys(currentSettings).length === 0) {
       return NextResponse.json(
         { error: "Settings not found - use POST to create new settings" },
         { status: 404 }
@@ -165,7 +177,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate provided fields (only checking fields that are present)
+    // Validate provided fields
     const validationErrors = [];
     if (
       "publicKey" in body &&
@@ -199,19 +211,19 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Update only the provided fields
-    storage.settings = {
-      ...storage.settings,
+    // Update settings with new values
+    const updatedSettings = {
+      ...currentSettings,
       ...body,
     };
 
-    // Write to storage
-    await writeStorage(storage);
+    // Write updated settings
+    await Database.writeSettings(updatedSettings);
 
     return NextResponse.json({
       success: true,
       message: "Settings updated successfully",
-      settings: storage.settings,
+      settings: updatedSettings,
     });
   } catch (error) {
     console.error("Settings update error:", error);

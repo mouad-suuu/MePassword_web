@@ -1,25 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readStorage, writeStorage } from "../../../../utils/storage";
+import { Database } from "../../../../utils/database";
 import { EncryptedPassword } from "../../../../types";
 import { validateAuthToken } from "../../../../middleware/auth";
 
 export async function PUT(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse> {
+) {
   // Validate authentication
-  try {
-    const authResult = await validateAuthToken(request);
-    if ("error" in authResult) {
-      return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
-      );
-    }
-  } catch {
+  const authResult = await validateAuthToken(request);
+  if ("error" in authResult) {
     return NextResponse.json(
-      { error: "Failed to validate authentication" },
-      { status: 500 }
+      { error: authResult.error },
+      { status: authResult.status }
     );
   }
 
@@ -27,8 +20,8 @@ export async function PUT(
     const body = await request.json();
     const id = (await params).id;
 
-    const storage = await readStorage();
-    const passwordIndex = storage.keys.findIndex((p) => p.id === id);
+    const passwords = await Database.readKeys();
+    const passwordIndex = passwords.findIndex((p) => p.id === id);
 
     if (passwordIndex === -1) {
       return NextResponse.json(
@@ -39,15 +32,15 @@ export async function PUT(
 
     // Update metadata
     const updatedPassword: EncryptedPassword = {
-      ...storage.keys[passwordIndex],
+      ...passwords[passwordIndex],
       password: body.password,
       modifiedAt: Date.now(),
       lastAccessed: Date.now(),
-      version: (storage.keys[passwordIndex].version || 0) + 1,
+      version: (passwords[passwordIndex].version || 0) + 1,
     };
 
-    storage.keys[passwordIndex] = updatedPassword;
-    await writeStorage(storage);
+    passwords[passwordIndex] = updatedPassword;
+    await Database.writekeys(passwords[passwordIndex]);
 
     return NextResponse.json({ success: true });
   } catch {
@@ -61,7 +54,7 @@ export async function PUT(
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
-): Promise<NextResponse> {
+) {
   // Validate authentication
   const authResult = await validateAuthToken(request);
   if ("error" in authResult) {
@@ -72,7 +65,6 @@ export async function DELETE(
   }
 
   try {
-    // Await params to access id
     const id = (await params).id;
 
     if (!id) {
@@ -82,8 +74,8 @@ export async function DELETE(
       );
     }
 
-    const storage = await readStorage();
-    const passwordIndex = storage.keys.findIndex((p) => p.id === id);
+    const passwords = await Database.readKeys();
+    const passwordIndex = passwords.findIndex((p) => p.id === id);
 
     if (passwordIndex === -1) {
       return NextResponse.json(
@@ -92,8 +84,8 @@ export async function DELETE(
       );
     }
 
-    storage.keys.splice(passwordIndex, 1);
-    await writeStorage(storage);
+    passwords.splice(passwordIndex, 1);
+    await Database.writekeys(passwords[passwordIndex]);
 
     return NextResponse.json({ success: true });
   } catch {
