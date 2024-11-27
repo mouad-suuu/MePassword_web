@@ -74,21 +74,21 @@ export async function DELETE(
       );
     }
 
-    const passwords = await Database.readKeys();
-    const passwordIndex = passwords.findIndex((p) => p.id === id);
-
-    if (passwordIndex === -1) {
+    // Check if the password exists
+    const existingPassword = await Database.getPasswordById(id);
+    if (!existingPassword) {
       return NextResponse.json(
         { error: "Password not found" },
         { status: 404 }
       );
     }
 
-    passwords.splice(passwordIndex, 1);
-    await Database.writekeys(passwords[passwordIndex]);
+    // Delete the password
+    await Database.deletePassword(id);
 
     return NextResponse.json({ success: true });
-  } catch {
+  } catch (error) {
+    console.error("Failed to delete password:", error);
     return NextResponse.json(
       { error: "Failed to delete password" },
       { status: 500 }

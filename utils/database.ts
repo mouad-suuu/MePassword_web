@@ -292,4 +292,32 @@ export class Database {
       total: parseInt(totalCount[0].total),
     };
   }
+  static async deleteKey(id: string): Promise<void> {
+    await sql`
+      DELETE FROM keys 
+      WHERE id = ${id}
+    `;
+  }
+
+  // Delete a password by ID
+
+  // Optional method to get a key by ID (similar to getPasswordById)
+  static async getKeyById(id: string): Promise<EncryptedPassword | null> {
+    const { rows } = await sql`
+      SELECT 
+        id,
+        website,
+        username as user,
+        encrypted_password as password,
+        created_at as "createdAt",
+        modified_at as "modifiedAt",
+        last_accessed as "lastAccessed",
+        version,
+        strength
+      FROM keys
+      WHERE id = ${id}
+    `;
+
+    return rows.length > 0 ? (rows[0] as EncryptedPassword) : null;
+  }
 }
