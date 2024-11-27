@@ -68,29 +68,23 @@ export async function DELETE(
     const id = (await params).id;
 
     if (!id) {
-      return NextResponse.json(
-        { error: "Missing password ID" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Missing key ID" }, { status: 400 });
     }
 
-    // Check if the password exists
-    const existingPassword = await Database.getPasswordById(id);
-    if (!existingPassword) {
-      return NextResponse.json(
-        { error: "Password not found" },
-        { status: 404 }
-      );
+    // Check if the key exists
+    const existingKey = await Database.getKeyById(id);
+    if (!existingKey) {
+      return NextResponse.json({ error: "Key not found" }, { status: 404 });
     }
 
-    // Delete the password
-    await Database.deletePassword(id);
+    // Delete the key
+    await Database.deleteKey(id);
 
     return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Failed to delete password:", error);
+    console.error("Failed to delete key:", error);
     return NextResponse.json(
-      { error: "Failed to delete password" },
+      { error: "Failed to delete key" },
       { status: 500 }
     );
   }
