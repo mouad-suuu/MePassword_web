@@ -10,7 +10,6 @@ async function initializeDatabaseIfNeeded() {
     try {
       await Database.initDatabase();
       isInitialized = true;
-      console.log("Database initialized successfully");
     } catch (error) {
       console.error("Failed to initialize database:", error);
       throw error;
