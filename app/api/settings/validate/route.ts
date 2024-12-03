@@ -1,13 +1,14 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Database } from "../../../../utils/database";
+import { readSettings } from "../../../../utils/database";
 import { validateAuthToken } from "../../../../middleware/auth";
 
 interface ValidatePasswordPayload {
   password: string;
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest,{params}: {params: Promise<{id: string}>}) {
   try {
+    const user_id = (await params).id
     // Validate authentication
     const authResult = await validateAuthToken(request);
     if ("error" in authResult) {
@@ -37,7 +38,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Read settings from database
-    const settings = await Database.readSettings();
+    const settings = await readSettings(user_id);
 
     if (!settings?.password) {
       return NextResponse.json(
@@ -52,26 +53,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("Password validation error:", error);
 
-    // Log the error in audit logs
-    try {
-      await Database.writeAuditLog({
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        action: "login",
-        userId: "unknown", // Or get from authResult if available
-        resourceType: "password",
-        resourceId: "master-password",
-        metadata: {
-          ip: request.headers.get("x-forwarded-for") || "unknown",
-          userAgent: request.headers.get("user-agent") || "unknown",
-          success: false,
-          failureReason:
-            error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    } catch (logError) {
-      console.error("Failed to log audit entry:", logError);
-    }
+ 
 
     return NextResponse.json(
       {

@@ -1,0 +1,44 @@
+HTML CSS JSResult Skip Results Iframe
+EDIT ON
+
+body{
+  margin:0;
+  background-color:grey;
+  height:4000px;
+}
+section{
+  position:fixed;
+  top:0;
+  left:0;
+  width:100vw;
+  height:100vh;
+}
+
+@keyframes floating {
+  0% { transform: translateY(0px); }
+  50% { transform: translateY(-20px); }
+ 100% { transform: translateY(0px); }
+}
+
+.box{
+  position: fixed;
+  transform: translate(-50%, -50%);
+  width: 100px;
+  height: 100px;
+  font-size: 55px;
+  font-family: sans-serif;
+  color: #949393;
+  transition: transform 3s ease-in-out;
+  pointer-events: none;
+  z-index: 1000;
+}
+
+#hover{
+  position:absolute;
+  width:70%;
+  height:70%;
+  left:15%;
+  top:15%;
+  cursor:none;
+  border:none;
+}

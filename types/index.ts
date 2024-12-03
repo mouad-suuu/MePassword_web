@@ -11,6 +11,15 @@ export interface SymmetricKeys {
   length: 256;
   iv: string;
 }
+export interface Device {
+  id: string
+  name: string
+  browser: string
+  os: string
+  lastAccessed: string
+  ip: string
+}
+
 
 export interface PasswordMetadata {
   id: string;

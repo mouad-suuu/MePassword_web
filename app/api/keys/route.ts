@@ -1,48 +1,33 @@
+"use server"
 import { NextRequest, NextResponse } from "next/server";
-import { Database } from "../../../utils/database";
+import { writeKeys , readKeys } from "../../../utils/database";
 import { EncryptedPassword } from "../../../types";
 import { validateAuthToken } from "../../../middleware/auth";
 
-export async function GET(request: NextRequest) {
+export async function GET(request: NextRequest, {params}: {params: Promise<{id: string}>}) {
+  console.log('[GET] /api/keys - Start');
+  
   try {
-    // Validate authentication
+    const user_id = (await params).id
+    console.log('[GET] User ID:', user_id);
+
     const authResult = await validateAuthToken(request);
+    console.log('[GET] Auth validation result:', authResult);
+
     if ("error" in authResult) {
+      console.log('[GET] Authentication failed');
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
       );
     }
 
-    // Fetch keys from database
-    const keys = await Database.readKeys();
-
-    // Log the read access
+    const keys = await readKeys(user_id);
+    console.log('[GET] Successfully retrieved keys, count:', keys.length);
 
     return NextResponse.json({ keys });
   } catch (error) {
-    console.error("Failed to fetch keys:", error);
-
-    // Log the error
-    try {
-      await Database.writeAuditLog({
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        action: "read",
-        userId: "unknown",
-        resourceType: "key",
-        resourceId: "all",
-        metadata: {
-          ip: request.headers.get("x-forwarded-for") || "unknown",
-          userAgent: request.headers.get("user-agent") || "unknown",
-          success: false,
-          failureReason:
-            error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    } catch (logError) {
-      console.error("Failed to log audit entry:", logError);
-    }
+    console.error('[GET] Error occurred:', error);
 
     return NextResponse.json(
       { error: "Failed to fetch keys" },
@@ -51,37 +36,44 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest,{params}: {params: Promise<{id: string}>}) {
+  console.log('[POST] /api/keys - Start');
+
   try {
-    // Validate authentication
+    const user_id = (await params).id
+    console.log('[POST] User ID:', user_id);
+
     const authResult = await validateAuthToken(request);
+    console.log('[POST] Auth validation result:', authResult);
+
     if ("error" in authResult) {
+      console.log('[POST] Authentication failed');
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
       );
     }
 
-    // Parse and validate request body
     let body: Partial<EncryptedPassword>;
     try {
       body = await request.json();
+      console.log('[POST] Request body received:', { ...body, password: '[REDACTED]' });
     } catch {
+      console.log('[POST] Invalid JSON payload');
       return NextResponse.json(
         { error: "Invalid JSON payload" },
         { status: 400 }
       );
     }
 
-    // Validate required fields
     if (!body.id || !body.website || !body.user || !body.password) {
+      console.log('[POST] Missing required fields');
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
       );
     }
 
-    // Create the key entry with metadata
     const keyEntry: EncryptedPassword = {
       ...(body as EncryptedPassword),
       createdAt: Date.now(),
@@ -99,36 +91,15 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Save to database
-    await Database.writekeys(keyEntry);
+    await writeKeys(user_id,keyEntry);
+    console.log('[POST] Successfully added new key');
 
     return NextResponse.json({
       success: true,
       key: keyEntry,
     });
   } catch (error) {
-    console.error("Failed to save key:", error);
-
-    // Log the error
-    try {
-      await Database.writeAuditLog({
-        id: crypto.randomUUID(),
-        timestamp: Date.now(),
-        action: "create",
-        userId: "unknown",
-        resourceType: "key",
-        resourceId: "unknown",
-        metadata: {
-          ip: request.headers.get("x-forwarded-for") || "unknown",
-          userAgent: request.headers.get("user-agent") || "unknown",
-          success: false,
-          failureReason:
-            error instanceof Error ? error.message : "Unknown error",
-        },
-      });
-    } catch (logError) {
-      console.error("Failed to log audit entry:", logError);
-    }
+    console.error('[POST] Error occurred:', error);
 
     return NextResponse.json(
       {
@@ -140,10 +111,17 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function PUT(request: NextRequest) {
-  try {
+export async function PUT(request: NextRequest,{params}: {params: Promise<{id: string}>}) {
+ 
+  try { 
+    const user_id = (await params).id
+    console.log('[PUT] User ID:', user_id);
+
     const authResult = await validateAuthToken(request);
+    console.log('[PUT] Auth validation result:', authResult);
+
     if ("error" in authResult) {
+      console.log('[PUT] Authentication failed');
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
@@ -151,8 +129,10 @@ export async function PUT(request: NextRequest) {
     }
 
     const body: EncryptedPassword = await request.json();
+    console.log('[PUT] Request body received:', { ...body, password: '[REDACTED]' });
 
     if (!body.id) {
+      console.log('[PUT] Missing key ID');
       return NextResponse.json({ error: "Missing key ID" }, { status: 400 });
     }
 
@@ -163,14 +143,15 @@ export async function PUT(request: NextRequest) {
       version: (body.version || 1) + 1,
     };
 
-    await Database.writekeys(updatedKey);
+    await writeKeys(user_id,updatedKey);
+    console.log('[PUT] Successfully updated key');
 
     return NextResponse.json({
       success: true,
       key: updatedKey,
     });
   } catch (error) {
-    console.error("Failed to update key:", error);
+    console.error('[PUT] Error occurred:', error);
     return NextResponse.json(
       { error: "Failed to update key" },
       { status: 500 }

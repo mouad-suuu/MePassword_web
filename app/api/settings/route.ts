@@ -1,32 +1,51 @@
-// app/api/settings/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
-import { Database } from "../../../utils/database";
+import { readSettings, writeSettings } from "../../../utils/database";
 import { validateAuthToken } from "../../../middleware/auth";
+import { APISettingsPayload } from "../../../types";
 
-let isInitialized = false;
+export async function GET(request: NextRequest,  { params }: { params: { id: string } }) {
+  try {
+    const userId = params.id;
+    // Ensure database is initialized
 
-async function initializeDatabaseIfNeeded() {
-  if (!isInitialized) {
-    try {
-      await Database.initDatabase();
-      isInitialized = true;
-      console.log("Database initialized successfully");
-    } catch (error) {
-      console.error("Failed to initialize database:", error);
-      throw error;
+
+    // Validate authentication
+    const authResult = await validateAuthToken(request);
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
     }
+
+    // Read settings
+    const settings = await readSettings(userId);
+
+    if (!settings || Object.keys(settings).length === 0) {
+      return NextResponse.json(
+        { error: "Settings not found" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ settings });
+  } catch (error) {
+    console.error("Settings retrieval error:", error);
+    return NextResponse.json(
+      {
+        error: "Internal server error",
+        message: error instanceof Error ? error.message : "Unknown error",
+      },
+      { status: 500 }
+    );
   }
 }
-interface APISettingsPayload {
-  publicKey: string;
-  password: string;
-  deviceId: string;
-  timestamp: number;
-}
 
-export async function POST(request: NextRequest) {
+export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
   try {
-    await initializeDatabaseIfNeeded();
+    const userId = (await params ).id;
+  
     // Validate authentication
     const authResult = await validateAuthToken(request);
     if ("error" in authResult) {
@@ -77,7 +96,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Write new settings
-    await Database.writeSettings({
+    await writeSettings(userId, {
       publicKey: body.publicKey,
       password: body.password,
       deviceId: body.deviceId,
@@ -100,44 +119,10 @@ export async function POST(request: NextRequest) {
   }
 }
 
-export async function GET(request: NextRequest) {
+export async function PUT(request: NextRequest,{params}: {params: Promise<{id: string}>}) {
   try {
-    await initializeDatabaseIfNeeded();
-    // Validate authentication
-    const authResult = await validateAuthToken(request);
-    if ("error" in authResult) {
-      return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
-      );
-    }
-
-    // Read settings
-    const settings = await Database.readSettings();
-
-    if (!settings || Object.keys(settings).length === 0) {
-      return NextResponse.json(
-        { error: "Settings not found" },
-        { status: 404 }
-      );
-    }
-
-    return NextResponse.json({ settings });
-  } catch (error) {
-    console.error("Settings retrieval error:", error);
-    return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
-      { status: 500 }
-    );
-  }
-}
-
-export async function PUT(request: NextRequest) {
-  try {
-    await initializeDatabaseIfNeeded();
+    const user_id = (await params).id
+    
     // Validate authentication
     const authResult = await validateAuthToken(request);
     if ("error" in authResult) {
@@ -148,7 +133,7 @@ export async function PUT(request: NextRequest) {
     }
 
     // Read current settings
-    const currentSettings = await Database.readSettings();
+    const currentSettings = await readSettings(user_id);
 
     // Check if settings exist
     if (!currentSettings || Object.keys(currentSettings).length === 0) {
@@ -218,7 +203,7 @@ export async function PUT(request: NextRequest) {
     };
 
     // Write updated settings
-    await Database.writeSettings(updatedSettings);
+    await writeSettings(user_id, updatedSettings);
 
     return NextResponse.json({
       success: true,
