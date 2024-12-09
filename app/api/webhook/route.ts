@@ -1,31 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook, WebhookRequiredHeaders } from "svix";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { createUser, deleteUser, initDatabase } from "../../../utils/database";
+import { createUser, deleteUser, ensureDatabaseInitialized } from "../../../utils/database";
 import { headers } from "next/headers";
 
-// Add more verbose logging at the top
 console.log("🌐 Webhook Route Initialized");
 console.log("Webhook Secret:", process.env.WEBHOOK_SECRET ? "✅ Present" : "❌ Missing");
 
-let isInitialized = false;
 const webhookSecret = process.env.WEBHOOK_SECRET;
-
-async function initializeDatabaseIfNeeded() {
-  console.log("🔍 Attempting to initialize database");
-  if (!isInitialized) {
-    try {
-      await initDatabase();
-      isInitialized = true;
-      console.log("✅ Database initialized successfully");
-    } catch (error) {
-      console.error("❌ Failed to initialize database:", error);
-      throw error;
-    }
-  } else {
-    console.log("ℹ️ Database already initialized");
-  }
-}
 
 export async function POST(req: NextRequest) {
   console.log("🚀 Webhook POST method called");
@@ -33,10 +15,10 @@ export async function POST(req: NextRequest) {
   try {
     // Ensure database is initialized before processing webhook
     console.log("🔒 Ensuring database initialization");
-    await initializeDatabaseIfNeeded();
+    await ensureDatabaseInitialized();
 
     console.log("📋 Extracting webhook headers");
-    const headerPayload = await headers();
+    const headerPayload = await headers(); // Added await here
     const svixId = headerPayload.get("svix-id");
     const svixTimestamp = headerPayload.get("svix-timestamp");
     const svixSignature = headerPayload.get("svix-signature");
@@ -49,16 +31,21 @@ export async function POST(req: NextRequest) {
 
     if (!svixId || !svixTimestamp || !svixSignature) {
       console.error("❌ Missing required Svix headers");
-      return new NextResponse("Error occurred -- no svix headers", {
-        status: 400,
+      return new NextResponse("Error occured -- no svix headers", {
+        status: 400
       });
     }
 
-    console.log("📦 Parsing request payload");
+    if (!webhookSecret) {
+      console.error("❌ Missing Webhook Secret");
+      return new NextResponse("Error occured -- no webhook secret", {
+        status: 400
+      });
+    }
+
     const payload = await req.json();
     const body = JSON.stringify(payload);
 
-    console.log("🔐 Verifying webhook signature");
     const wh = new Webhook(webhookSecret);
     let evt: WebhookEvent;
 
@@ -67,92 +54,68 @@ export async function POST(req: NextRequest) {
         "svix-id": svixId,
         "svix-timestamp": svixTimestamp,
         "svix-signature": svixSignature,
-      } as WebhookRequiredHeaders) as WebhookEvent;
-      console.log("✅ Webhook signature verified successfully");
+      }) as WebhookEvent;
     } catch (err) {
-      console.error("❌ Webhook verification failed:", err);
-      return new NextResponse("Error occurred during verification", {
-        status: 400,
+      console.error("❌ Error verifying webhook:", err);
+      return new NextResponse("Error occured", {
+        status: 400
       });
     }
 
-    console.log("🎯 Processing webhook event:", evt.type);
-    try {
-      switch (evt.type) {
-        case "user.created":
-        case "user.updated":
-          console.log("👤 User event detected");
-          const userData = evt.data as {
-            id: string;
-            email_addresses: {
-              email_address: string;
-              id: string;
-              verification?: { status: string };
-            }[];
-            primary_email_address_id: string;
-            first_name?: string;
-            last_name?: string;
-            username?: string;
-            image_url?: string;
-          };
+    // Type guard for user events
+    if (!("email_addresses" in evt.data)) {
+      console.log("ℹ️ Non-user event received:", evt.type);
+      return new NextResponse("Success", { status: 200 });
+    }
 
-          console.log("📧 User Data:", {
-            userId: userData.id,
-            emailCount: userData.email_addresses.length,
-            primaryEmailId: userData.primary_email_address_id
-          });
+    const eventType = evt.type;
+    const userData = evt.data as {
+      id: string;
+      email_addresses: { email_address: string }[];
+      first_name?: string;
+      last_name?: string;
+      username?: string;
+      image_url?: string;
+    };
 
-          // Find primary email
-          const primaryEmail = userData.email_addresses.find(
-            (email) => email.id === userData.primary_email_address_id
-          );
+    console.log(`📥 Processing webhook event: ${eventType}`);
 
-          if (!primaryEmail) {
-            console.error("❌ No primary email found");
-            throw new Error("No primary email found");
-          }
-
-          console.log("🚀 Creating/Updating user in database");
-          // Create or update user in the database
-          await createUser(
-            userData.id, 
-            primaryEmail.email_address,
-            primaryEmail.verification?.status === "verified",
-            userData.first_name || '',
-            userData.last_name || '',
-            userData.username || '',
-            userData.image_url || ''
-          );
-          console.log("✅ User processed successfully");
-          break;
-
-        case "user.deleted":
-          await deleteUser(evt.data.id);
-          console.log(`🗑️ User deleted: ${evt.data.id}`);
-          break;
-
-        case "email.created":
-          console.log("📬 Email created event received:", evt.data);
-          break;
-
-        default:
-          console.log("❓ Unhandled webhook event type:", evt.type);
+    if (eventType === "user.created" || eventType === "user.updated") {
+      const email = userData.email_addresses?.[0]?.email_address;
+      if (!email) {
+        console.error("❌ No email found in webhook payload");
+        return new NextResponse("No email found in webhook payload", {
+          status: 400
+        });
       }
 
-      console.log("🎉 Webhook processed successfully");
-      return new NextResponse("Webhook processed successfully", {
-        status: 200,
-      });
-    } catch (error) {
-      console.error("❌ Error processing webhook:", error);
-      return new NextResponse("Error occurred during processing", {
-        status: 400,
-      });
+      await createUser(
+        userData.id,
+        email,
+        true,
+        userData.first_name ?? "",
+        userData.last_name ?? "",
+        userData.username ?? "",
+        userData.image_url ?? ""
+      );
+
+      console.log(`✅ User ${eventType === "user.created" ? "created" : "updated"} successfully`);
+      return new NextResponse("Success", { status: 200 });
     }
-  } catch (globalError) {
-    console.error("🚨 Global error in webhook handler:", globalError);
-    return new NextResponse("Unexpected error occurred", {
-      status: 500,
+
+    if (eventType === "user.deleted") {
+      await deleteUser(userData.id);
+      console.log("✅ User deleted successfully");
+      return new NextResponse("Success", { status: 200 });
+    }
+
+    console.log("ℹ️ Unhandled webhook event type:", eventType);
+    return new NextResponse("Unhandled webhook event type", { status: 400 });
+
+  } catch (error) {
+    console.error("❌ Error processing webhook:", error);
+    return new NextResponse("Error occured", {
+      status: 400
     });
   }
 }

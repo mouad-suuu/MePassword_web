@@ -1,8 +1,17 @@
 export interface APISettingsPayload {
+  userId: string;
   publicKey: string;
   password: string;
   deviceId: string;
   timestamp: number;
+  sessionSettings?: {
+    pushNotifications: boolean;
+    autoLockTime: number;
+    sessionTime: number;
+    lastAccessTime?: number;
+    biometricVerification: boolean;
+    biometricType: BiometricType;
+  };
 }
 
 export interface SymmetricKeys {
@@ -60,3 +69,5 @@ export interface AuditLog {
     failureReason?: string;
   };
 }
+export type BiometricType = "face" | "fingerprint" | "none";
+

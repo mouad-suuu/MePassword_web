@@ -16,18 +16,13 @@ const nextConfig: NextConfig = {
           },
           {
             key: "Access-Control-Allow-Headers",
-            value: "Content-Type, Authorization",
+            value: "Content-Type, Authorization, X-User-ID",
           },
         ],
       },
     ];
   },
 
-  env: {
-    AUTH_KEY_HASH: process.env.AUTH_KEY_HASH,
-
-    VERCEL_TOKEN: process.env.VERCEL_TOKEN,
-  },
 };
 
 export default nextConfig;

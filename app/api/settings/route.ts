@@ -1,21 +1,17 @@
-
 import { NextRequest, NextResponse } from "next/server";
 import { readSettings, writeSettings } from "../../../utils/database";
-import { validateAuthToken } from "../../../middleware/auth";
 import { APISettingsPayload } from "../../../types";
 
-export async function GET(request: NextRequest,  { params }: { params: { id: string } }) {
+export async function GET(request: NextRequest) {
   try {
-    const userId = params.id;
-    // Ensure database is initialized
-
-
-    // Validate authentication
-    const authResult = await validateAuthToken(request);
-    if ("error" in authResult) {
+    // Get userId from query parameters
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
       return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
+        { error: "User ID is required" },
+        { status: 400 }
       );
     }
 
@@ -42,173 +38,114 @@ export async function GET(request: NextRequest,  { params }: { params: { id: str
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: { id: string } }) {
+export async function POST(request: NextRequest) {
   try {
-    const userId = (await params ).id;
-  
-    // Validate authentication
-    const authResult = await validateAuthToken(request);
-    if ("error" in authResult) {
-      return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
-      );
-    }
-
+    console.log("Settings POST: Starting to process request");
+    
     // Parse and validate request body
     let body: APISettingsPayload;
     try {
       body = await request.json();
-    } catch {
+      console.log("Settings POST: Request body parsed", { 
+        hasUserId: !!body.userId,
+        hasPublicKey: !!body.publicKey,
+        hasPassword: !!body.password
+      });
+    } catch (error) {
+      console.error("Settings POST: JSON parse error", error);
       return NextResponse.json(
-        { error: "Invalid JSON payload" },
+        { error: "Invalid request body" },
         { status: 400 }
       );
     }
 
-    // Validate required fields and types
-    if (typeof body !== "object" || body === null) {
+    // Validate required fields
+    const requiredFields = ['userId', 'publicKey', 'password', 'deviceId', 'timestamp'];
+    const missingFields = requiredFields.filter(field => !body[field]);
+    
+    if (missingFields.length > 0) {
+      console.error("Settings POST: Missing required fields", missingFields);
       return NextResponse.json(
-        { error: "Request body must be an object" },
+        { error: `Missing required fields: ${missingFields.join(', ')}` },
         { status: 400 }
       );
     }
 
-    const validationErrors = [];
-    if (typeof body.publicKey !== "string" || !body.publicKey) {
-      validationErrors.push("publicKey must be a non-empty string");
-    }
-    if (typeof body.password !== "string" || !body.password) {
-      validationErrors.push("password must be a non-empty string");
-    }
-    if (typeof body.deviceId !== "string" || !body.deviceId) {
-      validationErrors.push("deviceId must be a non-empty string");
-    }
-    if (typeof body.timestamp !== "number" || isNaN(body.timestamp)) {
-      validationErrors.push("timestamp must be a valid number");
-    }
-
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        { error: "Validation failed", details: validationErrors },
-        { status: 400 }
-      );
-    }
-
-    // Write new settings
-    await writeSettings(userId, {
-      publicKey: body.publicKey,
-      password: body.password,
-      deviceId: body.deviceId,
-      timestamp: body.timestamp,
-    });
-
-    return NextResponse.json({
-      success: true,
-      message: "Settings updated successfully",
-    });
+    console.log("Settings POST: Writing settings to database");
+    // Write settings
+    await writeSettings(body);
+    console.log("Settings POST: Settings written successfully");
+    
+    return NextResponse.json({ success: true });
   } catch (error) {
-    console.error("Settings update error:", error);
+    console.error("Settings POST: Error occurred:", error);
     return NextResponse.json(
       {
         error: "Internal server error",
         message: error instanceof Error ? error.message : "Unknown error",
+        details: error instanceof Error ? error.stack : undefined
       },
       { status: 500 }
     );
   }
 }
 
-export async function PUT(request: NextRequest,{params}: {params: Promise<{id: string}>}) {
+export async function PUT(request: NextRequest) {
   try {
-    const user_id = (await params).id
+    console.log("Settings PUT: Starting to process request");
     
-    // Validate authentication
-    const authResult = await validateAuthToken(request);
-    if ("error" in authResult) {
+    // Get userId from request body
+    let body: Partial<APISettingsPayload>;
+    try {
+      const rawBody = await request.text();
+      console.log("Settings PUT: Raw request body:", rawBody);
+      
+      body = JSON.parse(rawBody);
+      console.log("Settings PUT: Parsed body:", {
+        hasUserId: !!body.userId,
+        userId: body.userId,
+        hasPublicKey: !!body.publicKey,
+        hasSessionSettings: !!body.sessionSettings,
+        hasDeviceId: !!body.deviceId,
+        hasTimestamp: !!body.timestamp
+      });
+    } catch (error) {
+      console.error("Settings PUT: JSON parse error", error);
       return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
+        { error: "Invalid request body", details: error instanceof Error ? error.message : "Unknown error" },
+        { status: 400 }
+      );
+    }
+
+    if (!body.userId) {
+      console.error("Settings PUT: Missing userId in request body");
+      return NextResponse.json(
+        { error: "userId is required in request body" },
+        { status: 400 }
       );
     }
 
     // Read current settings
-    const currentSettings = await readSettings(user_id);
+    console.log("Settings PUT: Reading current settings for userId:", body.userId);
+    const currentSettings = await readSettings(body.userId);
 
-    // Check if settings exist
-    if (!currentSettings || Object.keys(currentSettings).length === 0) {
-      return NextResponse.json(
-        { error: "Settings not found - use POST to create new settings" },
-        { status: 404 }
-      );
-    }
-
-    // Parse and validate request body
-    let body: Partial<APISettingsPayload>;
-    try {
-      body = await request.json();
-    } catch {
-      return NextResponse.json(
-        { error: "Invalid JSON payload" },
-        { status: 400 }
-      );
-    }
-
-    // Validate body structure
-    if (typeof body !== "object" || body === null) {
-      return NextResponse.json(
-        { error: "Request body must be an object" },
-        { status: 400 }
-      );
-    }
-
-    // Validate provided fields
-    const validationErrors = [];
-    if (
-      "publicKey" in body &&
-      (typeof body.publicKey !== "string" || !body.publicKey)
-    ) {
-      validationErrors.push("publicKey must be a non-empty string");
-    }
-    if (
-      "password" in body &&
-      (typeof body.password !== "string" || !body.password)
-    ) {
-      validationErrors.push("password must be a non-empty string");
-    }
-    if (
-      "deviceId" in body &&
-      (typeof body.deviceId !== "string" || !body.deviceId)
-    ) {
-      validationErrors.push("deviceId must be a non-empty string");
-    }
-    if (
-      "timestamp" in body &&
-      (typeof body.timestamp !== "number" || isNaN(body.timestamp))
-    ) {
-      validationErrors.push("timestamp must be a valid number");
-    }
-
-    if (validationErrors.length > 0) {
-      return NextResponse.json(
-        { error: "Validation failed", details: validationErrors },
-        { status: 400 }
-      );
-    }
-
-    // Update settings with new values
-    const updatedSettings = {
-      ...currentSettings,
-      ...body,
+    // Merge settings if they exist
+    const updatedSettings: APISettingsPayload = {
+      userId: body.userId,
+      publicKey: body.publicKey || currentSettings?.publicKey,
+      password: body.password || currentSettings?.password,
+      deviceId: body.deviceId || currentSettings?.deviceId,
+      timestamp: body.timestamp || Date.now(),
+      sessionSettings: body.sessionSettings || currentSettings?.sessionSettings
     };
 
-    // Write updated settings
-    await writeSettings(user_id, updatedSettings);
+    console.log("Settings PUT: Writing merged settings to database");
+    await writeSettings(updatedSettings);
+    console.log("Settings PUT: Settings updated successfully");
 
     return NextResponse.json({
       success: true,
-      message: "Settings updated successfully",
-      settings: updatedSettings,
+      message: "Settings updated successfully"
     });
   } catch (error) {
     console.error("Settings update error:", error);

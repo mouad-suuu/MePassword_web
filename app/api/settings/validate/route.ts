@@ -1,20 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
 import { readSettings } from "../../../../utils/database";
 import { validateAuthToken } from "../../../../middleware/auth";
+import { validateSecurityHeaders } from "../../../middleware/security";
 
 interface ValidatePasswordPayload {
-  password: string;
+  NewEncryptedPassword: string;
 }
 
-export async function POST(request: NextRequest,{params}: {params: Promise<{id: string}>}) {
+export async function POST(request: NextRequest) {
   try {
-    const user_id = (await params).id
-    // Validate authentication
-    const authResult = await validateAuthToken(request);
-    if ("error" in authResult) {
+    // Validate security headers
+    const securityResult = await validateSecurityHeaders(request);
+    if ("error" in securityResult) {
       return NextResponse.json(
-        { error: authResult.error },
-        { status: authResult.status }
+        { error: securityResult.error },
+        { status: securityResult.status }
+      );
+    }
+
+    // Get userId from headers
+    const headers = request.headers;
+    const userId = headers.get('X-User-ID');
+    
+    console.log("Received validation request for user:", userId);
+
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required in headers" },
+        { status: 400 }
       );
     }
 
@@ -22,6 +35,7 @@ export async function POST(request: NextRequest,{params}: {params: Promise<{id: 
     let body: ValidatePasswordPayload;
     try {
       body = await request.json();
+      console.log("Received password payload:", body);
     } catch {
       return NextResponse.json(
         { error: "Invalid JSON payload" },
@@ -29,37 +43,22 @@ export async function POST(request: NextRequest,{params}: {params: Promise<{id: 
       );
     }
 
-    // Validate password field
-    if (typeof body.password !== "string" || !body.password) {
+    if (!body.NewEncryptedPassword) {
       return NextResponse.json(
-        { error: "password must be a non-empty string" },
+        { error: "NewEncryptedPassword is required" },
         { status: 400 }
       );
     }
 
-    // Read settings from database
-    const settings = await readSettings(user_id);
-
-    if (!settings?.password) {
-      return NextResponse.json(
-        { error: "No password configured" },
-        { status: 404 }
-      );
-    }
-
-    const isValid = body.password === settings.password;
+    const settings = await readSettings(userId);
+    // Direct comparison of encrypted passwords
+    const isValid = settings?.password === body.NewEncryptedPassword;
 
     return NextResponse.json({ isValid });
   } catch (error) {
     console.error("Password validation error:", error);
-
- 
-
     return NextResponse.json(
-      {
-        error: "Internal server error",
-        message: error instanceof Error ? error.message : "Unknown error",
-      },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }

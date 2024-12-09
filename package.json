@@ -3,7 +3,8 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "next dev",
+    "dev": "cross-env NODE_OPTIONS=\"--max-http-header-size=12800000\" next dev -p 3000",
+    "dev-4100": "cross-env NODE_OPTIONS=\"--max-http-header-size=12800000 --max-old-space-size=4096 --inspect\" next dev -p 4100",
     "build": "next build",
     "start": "next start",
     "lint": "next lint"
@@ -33,6 +34,7 @@
     "@types/node": "^20",
     "@types/react": "^18",
     "@types/react-dom": "^18",
+    "cross-env": "^7.0.3",
     "eslint": "^8",
     "eslint-config-next": "15.0.2",
     "postcss": "^8",

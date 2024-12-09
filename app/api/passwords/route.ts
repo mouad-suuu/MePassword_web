@@ -4,33 +4,45 @@ import { readPasswords, writePassword } from "../../../utils/database";
 import { EncryptedPassword } from "../../../types";
 import { validateAuthToken } from "../../../middleware/auth";
 
-export async function GET(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function GET(request: NextRequest) {
   console.log('[GET] /api/passwords - Start');
 
-  // Validate authentication
-  const authResult = await validateAuthToken(request);
-  console.log('[GET] Auth validation result:', authResult);
-
-  if ("error" in authResult) {
-    console.log('[GET] Authentication failed');
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
   try {
-    const user_id = (await params).id
-    console.log('[GET] User ID:', user_id);
+    // Get userId from query parameters
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
 
-    const passwords = await readPasswords(user_id);
+    // Validate authentication
+    const authResult = await validateAuthToken(request);
+    console.log('[GET] Auth validation result:', authResult);
+
+    if ("error" in authResult) {
+      console.log('[GET] Authentication failed');
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
+    // Read passwords
+    const passwords = await readPasswords(userId);
     console.log('[GET] Successfully retrieved passwords, count:', passwords.length);
 
     return NextResponse.json({ passwords });
-  } catch {
-    console.error('[GET] Error occurred:');
+  } catch (error) {
+    console.error('[GET] Error occurred:', error);
     return NextResponse.json(
-      { error: "Failed to fetch passwords" },
+      { 
+        error: "Failed to fetch passwords",
+        message: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

@@ -3,7 +3,6 @@
 import { sql } from "@vercel/postgres";
 import { APISettingsPayload, EncryptedPassword, AuditLog } from "../types";
 
-
 export async function initDatabase() {
   try {
     await sql`
@@ -16,17 +15,22 @@ export async function initDatabase() {
         first_name TEXT,
         last_name TEXT,
         username TEXT,
-        image_url TEXT
+        image_url TEXT,
+        encrypted_token TEXT,
+        token_expires_at TIMESTAMP WITH TIME ZONE
       );
     `;
 
     await sql`
       CREATE TABLE IF NOT EXISTS settings (
         id TEXT PRIMARY KEY,
-        user_id TEXT,
-        theme TEXT,
-        auto_lock_time INTEGER,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        user_id TEXT UNIQUE NOT NULL,
+        public_key TEXT,
+        password TEXT,
+        device_id TEXT,
+        timestamp BIGINT,
+        session_settings JSONB,
+        FOREIGN KEY (user_id) REFERENCES users(id)
       );
     `;
 
@@ -43,12 +47,11 @@ export async function initDatabase() {
       CREATE TABLE IF NOT EXISTS passwords (
         id TEXT PRIMARY KEY,
         user_id TEXT,
-        name TEXT,
+        website TEXT,
         username TEXT,
         encrypted_password TEXT NOT NULL,
-        website TEXT,
-        notes TEXT,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
       );
     `;
 
@@ -104,6 +107,26 @@ export async function initDatabase() {
   }
 }
 
+export async function ensureDatabaseInitialized() {
+  try {
+    // Check if users table exists
+    const { rows } = await sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_name = 'users'
+      );
+    `;
+
+    if (!rows[0].exists) {
+      console.log('Initializing database tables...');
+      await initDatabase();
+    }
+  } catch (error) {
+    console.error('Error checking/initializing database:', error);
+    throw error;
+  }
+}
+
 export async function createUser(
   userId: string, 
   email: string, 
@@ -111,50 +134,115 @@ export async function createUser(
   firstName: string, 
   lastName: string, 
   username: string, 
-  imageUrl: string
+  imageUrl: string,
+  encryptedToken?: string
 ): Promise<void> {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 30); // Default 30 days expiration
+
   await sql`
     INSERT INTO users (
-      id, 
-      email, 
-      created_at, 
-      last_login, 
-      verification, 
-      first_name, 
-      last_name, 
-      username, 
-      image_url
+      id,
+      email,
+      verification,
+      first_name,
+      last_name,
+      username,
+      image_url,
+      encrypted_token,
+      token_expires_at,
+      last_login
     ) VALUES (
-      ${userId}, 
-      ${email}, 
-      CURRENT_TIMESTAMP, 
-      CURRENT_TIMESTAMP, 
-      ${verification}, 
-      ${firstName}, 
-      ${lastName}, 
-      ${username}, 
-      ${imageUrl}
+      ${userId},
+      ${email},
+      ${verification},
+      ${firstName},
+      ${lastName},
+      ${username},
+      ${imageUrl},
+      ${encryptedToken || null},
+      ${encryptedToken ? expiresAt.toISOString() : null},
+      CURRENT_TIMESTAMP
     )
-    ON CONFLICT (id) DO UPDATE SET 
-      email = EXCLUDED.email,
-      last_login = CURRENT_TIMESTAMP,
-      verification = EXCLUDED.verification,
-      first_name = EXCLUDED.first_name,
-      last_name = EXCLUDED.last_name,
-      username = EXCLUDED.username,
-      image_url = EXCLUDED.image_url
+    ON CONFLICT (id) DO UPDATE SET
+      email = ${email},
+      verification = ${verification},
+      first_name = ${firstName},
+      last_name = ${lastName},
+      username = ${username},
+      image_url = ${imageUrl},
+      last_login = CURRENT_TIMESTAMP;
   `;
 }
 
+export async function updateUserToken(
+  userId: string, 
+  encryptedToken: string,
+  expiresInDays: number = 30
+): Promise<void> {
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + expiresInDays);
+
+  await sql`
+    UPDATE users 
+    SET 
+      encrypted_token = ${encryptedToken},
+      token_expires_at = ${expiresAt.toISOString()},
+      last_login = CURRENT_TIMESTAMP
+    WHERE id = ${userId};
+  `;
+}
+
+export async function getUserToken(userId: string): Promise<{ token: string | null, expired: boolean }> {
+  const result = await sql`
+    SELECT encrypted_token, token_expires_at
+    FROM users
+    WHERE id = ${userId};
+  `;
+
+  if (result.rows.length === 0 || !result.rows[0].encrypted_token) {
+    return { token: null, expired: true };
+  }
+
+  const expired = result.rows[0].token_expires_at 
+    ? new Date(result.rows[0].token_expires_at) < new Date() 
+    : false;
+
+  return {
+    token: result.rows[0].encrypted_token,
+    expired
+  };
+}
+
 export async function writeSettings(
-  userId: string,
   settings: APISettingsPayload
 ): Promise<void> {
   await sql`
-    INSERT INTO settings (user_id, settings)
-    VALUES (${userId}, ${JSON.stringify(settings)})
-    ON CONFLICT (user_id) DO UPDATE
-    SET settings = EXCLUDED.settings
+    INSERT INTO settings (
+      id,
+      user_id,
+      public_key,
+      password,
+      device_id,
+      timestamp,
+      session_settings
+    )
+    VALUES (
+      ${crypto.randomUUID()},
+      ${settings.userId},
+      ${settings.publicKey},
+      ${settings.password},
+      ${settings.deviceId},
+      ${settings.timestamp},
+      ${JSON.stringify(settings.sessionSettings)}
+    )
+    ON CONFLICT (user_id) 
+    DO UPDATE SET
+      public_key = EXCLUDED.public_key,
+      password = EXCLUDED.password,
+      device_id = EXCLUDED.device_id,
+      timestamp = EXCLUDED.timestamp,
+      session_settings = EXCLUDED.session_settings
   `;
 }
 
@@ -162,13 +250,19 @@ export async function readSettings(
   userId: string
 ): Promise<APISettingsPayload | null> {
   const { rows } = await sql`
-    SELECT settings
+    SELECT 
+      user_id as "userId",
+      public_key as "publicKey",
+      password,
+      device_id as "deviceId",
+      timestamp,
+      session_settings as "sessionSettings"
     FROM settings
     WHERE user_id = ${userId}
     LIMIT 1
   `;
 
-  return rows.length > 0 ? (rows[0].settings as APISettingsPayload) : null;
+  return rows.length > 0 ? rows[0] as APISettingsPayload : null;
 }
 
 export async function writeKeys(
@@ -178,8 +272,6 @@ export async function writeKeys(
   await sql`
     INSERT INTO keys (
       id, user_id, website, username, encrypted_password, 
-      created_at, modified_at, last_accessed, 
-      version, strength
     )
     VALUES (
       ${password.id},
@@ -188,20 +280,12 @@ export async function writeKeys(
       ${password.user},
       ${password.password},
       ${password.createdAt},
-      ${password.modifiedAt},
-      ${password.lastAccessed},
-      ${password.version},
-      ${password.strength}
     )
     ON CONFLICT (id, user_id) DO UPDATE
     SET 
       website = EXCLUDED.website,
       username = EXCLUDED.username,
       encrypted_password = EXCLUDED.encrypted_password,
-      modified_at = EXCLUDED.modified_at,
-      last_accessed = EXCLUDED.last_accessed,
-      version = EXCLUDED.version,
-      strength = EXCLUDED.strength
   `;
 }
 
@@ -212,14 +296,9 @@ export async function readKeys(userId: string): Promise<EncryptedPassword[]> {
       website,
       username as user,
       encrypted_password as password,
-      created_at as "createdAt",
-      modified_at as "modifiedAt",
-      last_accessed as "lastAccessed",
-      version,
-      strength
+      created_at as "createdAt"
     FROM keys 
     WHERE user_id = ${userId}
-    ORDER BY modified_at DESC
   `;
   return rows as EncryptedPassword[];
 }
@@ -231,8 +310,6 @@ export async function writePassword(
   await sql`
     INSERT INTO passwords (
       id, user_id, website, username, encrypted_password, 
-      created_at, modified_at, last_accessed, 
-      version, strength
     )
     VALUES (
       ${password.id},
@@ -241,20 +318,12 @@ export async function writePassword(
       ${password.user},
       ${password.password},
       ${password.createdAt},
-      ${password.modifiedAt},
-      ${password.lastAccessed},
-      ${password.version},
-      ${password.strength}
     )
     ON CONFLICT (id, user_id) DO UPDATE
     SET 
       website = EXCLUDED.website,
       username = EXCLUDED.username,
       encrypted_password = EXCLUDED.encrypted_password,
-      modified_at = EXCLUDED.modified_at,
-      last_accessed = EXCLUDED.last_accessed,
-      version = EXCLUDED.version,
-      strength = EXCLUDED.strength
   `;
 }
 
@@ -265,14 +334,9 @@ export async function readPasswords(userId: string): Promise<EncryptedPassword[]
       website,
       username as user,
       encrypted_password as password,
-      created_at as "createdAt",
-      modified_at as "modifiedAt",
-      last_accessed as "lastAccessed",
-      version,
-      strength
+      EXTRACT(EPOCH FROM created_at) * 1000 as "createdAt"
     FROM passwords
     WHERE user_id = ${userId}
-    ORDER BY modified_at DESC
   `;
   return rows as EncryptedPassword[];
 }
@@ -312,11 +376,7 @@ export async function getPasswordById(
       website,
       username as user,
       encrypted_password as password,
-      created_at as "createdAt",
-      modified_at as "modifiedAt",
-      last_accessed as "lastAccessed",
-      version,
-      strength
+      created_at as "createdAt"
     FROM passwords
     WHERE id = ${id} AND user_id = ${userId}
   `;
@@ -340,14 +400,9 @@ export async function getPasswordsWithPagination(
       website,
       username as user,
       encrypted_password as password,
-      created_at as "createdAt",
-      modified_at as "modifiedAt",
-      last_accessed as "lastAccessed",
-      version,
-      strength
+      created_at as "createdAt"
     FROM passwords
     WHERE user_id = ${userId}
-    ORDER BY modified_at DESC
     LIMIT ${limit}
     OFFSET ${offset}
   `;
