@@ -3,17 +3,18 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
-    "dev": "cross-env NODE_OPTIONS=\"--max-http-header-size=12800000\" next dev -p 3000",
-    "dev-4100": "cross-env NODE_OPTIONS=\"--max-http-header-size=12800000 --max-old-space-size=4096 --inspect\" next dev -p 4100",
+    "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "maintenance": "ts-node scripts/maintenance.ts"
   },
   "dependencies": {
     "@clerk/nextjs": "^6.5.1",
     "@prisma/client": "^5.22.0",
     "@radix-ui/react-slot": "^1.1.0",
     "@shadcn/ui": "^0.0.4",
+    "@types/ua-parser-js": "^0.7.39",
     "@vercel/edge-config": "^1.4.0",
     "@vercel/kv": "^3.0.0",
     "@vercel/postgres": "^0.10.0",
@@ -28,7 +29,8 @@
     "react-icons": "^5.3.0",
     "svix": "^1.41.0",
     "tailwind-merge": "^2.5.5",
-    "tailwindcss-animate": "^1.0.7"
+    "tailwindcss-animate": "^1.0.7",
+    "ua-parser-js": "^2.0.0"
   },
   "devDependencies": {
     "@types/node": "^20",

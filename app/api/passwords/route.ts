@@ -1,6 +1,6 @@
 "use server"
 import { NextRequest, NextResponse } from "next/server";
-import { readPasswords, writePassword } from "../../../utils/database";
+import { readPasswords, writePassword, deletePassword } from "../../../utils/database";
 import { EncryptedPassword } from "../../../types";
 import { validateAuthToken } from "../../../middleware/auth";
 
@@ -48,30 +48,63 @@ export async function GET(request: NextRequest) {
   }
 }
 
-export async function POST(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
+export async function POST(request: NextRequest) {
   console.log('[POST] /api/passwords - Start');
-
-  // Validate authentication
-  const authResult = await validateAuthToken(request);
-  console.log('[POST] Auth validation result:', authResult);
-
-  if ("error" in authResult) {
-    console.log('[POST] Authentication failed');
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
+  console.log('[POST] Request headers:', Object.fromEntries(request.headers.entries()));
+  
   try {
-    const user_id = (await params).id
-    console.log('[POST] User ID:', user_id);
+    // Check for userId in both URL params and headers
+    const url = new URL(request.url);
+    console.log('[POST] Original URL:', url.toString());
+    
+    let userId = url.searchParams.get('userId');
+    if (!userId) {
+      userId = request.headers.get('x-user-id');
+      console.log('[POST] UserId not found in URL params, checking headers. Found:', userId);
+    }
+    
+    if (!userId) {
+      console.log('[POST] Error: Missing userId in both URL params and headers');
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
 
-    const body: EncryptedPassword = await request.json();
-    console.log('[POST] Request body received:', { ...body, password: '[REDACTED]' });
+    console.log('[POST] Using userId:', userId);
+
+    // Validate authentication with userId
+    console.log('[POST] Starting auth validation for userId:', userId);
+    const authResult = await validateAuthToken(request, userId);
+    console.log('[POST] Auth validation result:', authResult);
+
+    if ("error" in authResult) {
+      console.log('[POST] Authentication failed:', authResult);
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
+    console.log('[POST] Authentication successful');
+
+    const rawBody = await request.text();
+    console.log('[POST] Raw request body:', rawBody);
+    
+    let body: EncryptedPassword;
+    try {
+      body = JSON.parse(rawBody);
+      console.log('[POST] Parsed request body:', { ...body, password: '[REDACTED]' });
+    } catch (parseError) {
+      console.log('[POST] Error parsing request body:', parseError);
+      return NextResponse.json(
+        { error: "Invalid request body format" },
+        { status: 400 }
+      );
+    }
 
     if (!body.id || !body) {
-      console.log('[POST] Missing required fields');
+      console.log('[POST] Missing required fields in body:', { receivedFields: Object.keys(body) });
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -86,12 +119,13 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
       version: 1,
     };
 
-    await writePassword(user_id, passwordEntry);
+    console.log('[POST] Attempting to write password entry');
+    await writePassword(userId, passwordEntry);
     console.log('[POST] Successfully added new password');
 
     return NextResponse.json({ success: true });
-  } catch {
-    console.error('[POST] Error occurred:');
+  } catch (error) {
+    console.error('[POST] Error occurred:', error);
     return NextResponse.json(
       { error: "Failed to save password" },
       { status: 500 }
@@ -99,23 +133,34 @@ export async function POST(request: NextRequest, { params }: { params: Promise<{
   }
 }
 
-export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  const user_id = (await params).id
-  console.log('[PUT] User ID:', user_id);
-
-  // Validate authentication
-  const authResult = await validateAuthToken(request);
-  console.log('[PUT] Auth validation result:', authResult);
-
-  if ("error" in authResult) {
-    console.log('[PUT] Authentication failed');
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
+export async function PUT(request: NextRequest) {
+  console.log('[PUT] /api/passwords - Start');
+  
   try {
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    console.log('[PUT] User ID:', userId);
+
+    // Validate authentication
+    const authResult = await validateAuthToken(request);
+    console.log('[PUT] Auth validation result:', authResult);
+
+    if ("error" in authResult) {
+      console.log('[PUT] Authentication failed');
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
     const body: EncryptedPassword = await request.json();
 
     if (!body.id) {
@@ -126,7 +171,7 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       );
     }
 
-    const passwords = await readPasswords(user_id);
+    const passwords = await readPasswords(userId);
     const passwordIndex = passwords.findIndex((p) => p.id === body.id);
 
     if (passwordIndex === -1) {
@@ -147,12 +192,12 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     };
 
     passwords[passwordIndex] = updatedPassword;
-    await writePassword(user_id, passwords[passwordIndex]);
+    await writePassword(userId, passwords[passwordIndex]);
     console.log('[PUT] Successfully updated password');
 
     return NextResponse.json({ success: true });
-  } catch {
-    console.error('[PUT] Error occurred:');
+  } catch (error) {
+    console.error('[PUT] Error occurred:', error);
     return NextResponse.json(
       { error: "Failed to update password" },
       { status: 500 }
@@ -160,53 +205,74 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
-  // Validate authentication
-  const authResult = await validateAuthToken(request);
-  console.log('[DELETE] Auth validation result:', authResult);
-
-  if ("error" in authResult) {
-    console.log('[DELETE] Authentication failed');
-    return NextResponse.json(
-      { error: authResult.error },
-      { status: authResult.status }
-    );
-  }
-
+export async function DELETE(request: NextRequest) {
+  console.log('[DELETE] /api/passwords - Start');
+  console.log('[DELETE] Request headers:', Object.fromEntries(request.headers.entries()));
+  
   try {
-    const user_id = (await params).id
-    console.log('[DELETE] User ID:', user_id);
+    // Check for userId in both URL params and headers
+    const url = new URL(request.url);
+    console.log('[DELETE] Original URL:', url.toString());
+    
+    let userId = url.searchParams.get('userId');
+    if (!userId) {
+      userId = request.headers.get('x-user-id');
+      console.log('[DELETE] UserId not found in URL params, checking headers. Found:', userId);
+    }
 
-    const { searchParams } = new URL(request.url);
-    const id = searchParams.get("id");
-
-    if (!id) {
-      console.log('[DELETE] Missing password ID');
+    const passwordId = url.searchParams.get('id');
+    console.log('[DELETE] Password ID from params:', passwordId);
+    
+    if (!userId || !passwordId) {
+      console.log('[DELETE] Error: Missing required parameters', { userId, passwordId });
       return NextResponse.json(
-        { error: "Missing password ID" },
+        { error: "Both User ID and Password ID are required" },
         { status: 400 }
       );
     }
 
-    const passwords = await readPasswords(user_id);
-    const passwordIndex = passwords.findIndex((p) => p.id === id);
+    // Validate authentication with userId
+    console.log('[DELETE] Starting auth validation for userId:', userId);
+    const authResult = await validateAuthToken(request, userId);
+    console.log('[DELETE] Auth validation result:', authResult);
 
-    if (passwordIndex === -1) {
-      console.log('[DELETE] Password not found');
+    if ("error" in authResult) {
+      console.log('[DELETE] Authentication failed:', authResult);
+      return NextResponse.json(
+        { error: authResult.error },
+        { status: authResult.status }
+      );
+    }
+
+    // Get all passwords for the user
+    const passwords = await readPasswords(userId);
+    console.log('[DELETE] Retrieved passwords count:', passwords.length);
+
+    // Find the specific password
+    const passwordToDelete = passwords.find(p => p.id === passwordId);
+    if (!passwordToDelete) {
+      console.log('[DELETE] Password not found:', passwordId);
       return NextResponse.json(
         { error: "Password not found" },
         { status: 404 }
       );
     }
 
-    await writePassword(user_id, passwords[passwordIndex]);
-    console.log('[DELETE] Successfully deleted password');
+    // Delete the password
+    await deletePassword(userId, passwordId);
+    console.log('[DELETE] Successfully deleted password:', passwordId);
 
-    return NextResponse.json({ success: true });
-  } catch {
-    console.error('[DELETE] Error occurred:');
+    return NextResponse.json({ 
+      success: true,
+      message: "Password successfully deleted"
+    });
+  } catch (error) {
+    console.error('[DELETE] Error occurred:', error);
     return NextResponse.json(
-      { error: "Failed to delete password" },
+      { 
+        error: "Failed to delete password",
+        message: error instanceof Error ? error.message : "Unknown error"
+      },
       { status: 500 }
     );
   }

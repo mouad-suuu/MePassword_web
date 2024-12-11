@@ -21,13 +21,14 @@ export interface SymmetricKeys {
   iv: string;
 }
 export interface Device {
-  id: string
-  name: string
-  browser: string
-  os: string
-  lastAccessed: string
-  ip: string
+  id: string;
+  userId: string;
+  browser: string;
+  os: string;
+  lastActive: Date;
+  sessionActive: boolean;
 }
+
 
 
 export interface PasswordMetadata {
@@ -47,27 +48,14 @@ export interface EncryptedPassword extends PasswordMetadata {
   MetaData?: PasswordMetadata;
 }
 
-export interface AuditLog {
+export interface Device {
   id: string;
-  timestamp: number;
-  action:
-    | "create"
-    | "read"
-    | "update"
-    | "delete"
-    | "share"
-    | "login"
-    | "logout";
   userId: string;
-  resourceType: "password" | "team" | "vault" | "key";
-  resourceId: string;
-  metadata: {
-    ip: string;
-    userAgent: string;
-    location?: string;
-    success: boolean;
-    failureReason?: string;
-  };
+  browser: string;
+  os: string;
+  lastActive: Date;
+  sessionActive: boolean;
 }
+
 export type BiometricType = "face" | "fingerprint" | "none";
 

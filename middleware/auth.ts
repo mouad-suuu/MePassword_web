@@ -2,12 +2,12 @@ import { NextRequest } from "next/server";
 import { validateEnv } from "../utils/env";
 import { getUserToken } from "../utils/database";
 
-export async function validateAuthToken(request: NextRequest) {
+export async function validateAuthToken(request: NextRequest, providedUserId?: string) {
   console.log("[validateAuthToken] Starting token validation");
   validateEnv();
   
   const authHeader = request.headers.get("Authorization");
-  const userId = request.nextUrl.searchParams.get("userId");
+  const userId = providedUserId || request.nextUrl.searchParams.get("userId");
 
   console.log("[validateAuthToken] Request details:", {
     hasAuthHeader: !!authHeader,

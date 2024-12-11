@@ -1,7 +1,7 @@
 "use server"
 
 import { sql } from "@vercel/postgres";
-import { APISettingsPayload, EncryptedPassword, AuditLog } from "../types";
+import { APISettingsPayload, EncryptedPassword, Device } from "../types";
 
 export async function initDatabase() {
   try {
@@ -38,8 +38,11 @@ export async function initDatabase() {
       CREATE TABLE IF NOT EXISTS keys (
         id TEXT PRIMARY KEY,
         user_id TEXT,
-        encrypted_key TEXT NOT NULL,
-        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP
+        website TEXT,
+        username TEXT,
+        encrypted_password TEXT NOT NULL,
+        created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
       );
     `;
 
@@ -53,6 +56,26 @@ export async function initDatabase() {
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
+    `;
+
+    await sql`
+      CREATE TABLE IF NOT EXISTS devices (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        browser TEXT NOT NULL,
+        os TEXT NOT NULL,
+        last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        session_active BOOLEAN DEFAULT TRUE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+      );
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_devices_user_id ON devices(user_id);
+    `;
+
+    await sql`
+      CREATE INDEX IF NOT EXISTS idx_devices_last_active ON devices(last_active);
     `;
 
     await sql`
@@ -180,33 +203,61 @@ export async function updateUserToken(
   encryptedToken: string,
   expiresInDays: number = 30
 ): Promise<void> {
+  console.log("[updateUserToken] Starting token update:", {
+    userId,
+    tokenLength: encryptedToken?.length,
+    tokenPreview: encryptedToken?.substring(0, 50),
+    expiresInDays
+  });
+
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expiresInDays);
 
-  await sql`
-    UPDATE users 
-    SET 
-      encrypted_token = ${encryptedToken},
-      token_expires_at = ${expiresAt.toISOString()},
-      last_login = CURRENT_TIMESTAMP
-    WHERE id = ${userId};
-  `;
+  try {
+    await sql`
+      UPDATE users 
+      SET 
+        encrypted_token = ${encryptedToken},
+        token_expires_at = ${expiresAt.toISOString()},
+        last_login = CURRENT_TIMESTAMP
+      WHERE id = ${userId};
+    `;
+    console.log("[updateUserToken] Token updated successfully");
+  } catch (error) {
+    console.error("[updateUserToken] Error updating token:", error);
+    throw error;
+  }
 }
 
 export async function getUserToken(userId: string): Promise<{ token: string | null, expired: boolean }> {
+  console.log("[getUserToken] Fetching token for user:", userId);
+
   const result = await sql`
     SELECT encrypted_token, token_expires_at
     FROM users
     WHERE id = ${userId};
   `;
 
+  console.log("[getUserToken] Database result:", {
+    hasRows: result.rows.length > 0,
+    hasToken: !!result.rows[0]?.encrypted_token,
+    expiresAt: result.rows[0]?.token_expires_at
+  });
+
   if (result.rows.length === 0 || !result.rows[0].encrypted_token) {
+    console.log("[getUserToken] No token found for user");
     return { token: null, expired: true };
   }
 
   const expired = result.rows[0].token_expires_at 
     ? new Date(result.rows[0].token_expires_at) < new Date() 
     : false;
+
+  console.log("[getUserToken] Returning token:", {
+    tokenLength: result.rows[0].encrypted_token?.length,
+    tokenPreview: result.rows[0].encrypted_token?.substring(0, 50),
+    expired
+  });
 
   return {
     token: result.rows[0].encrypted_token,
@@ -271,21 +322,24 @@ export async function writeKeys(
 ): Promise<void> {
   await sql`
     INSERT INTO keys (
-      id, user_id, website, username, encrypted_password, 
+      id,
+      user_id,
+      website,
+      username,
+      encrypted_password
     )
     VALUES (
       ${password.id},
       ${userId},
       ${password.website},
       ${password.user},
-      ${password.password},
-      ${password.createdAt},
+      ${password.password}
     )
     ON CONFLICT (id, user_id) DO UPDATE
-    SET 
+    SET
       website = EXCLUDED.website,
       username = EXCLUDED.username,
-      encrypted_password = EXCLUDED.encrypted_password,
+      encrypted_password = EXCLUDED.encrypted_password
   `;
 }
 
@@ -296,8 +350,8 @@ export async function readKeys(userId: string): Promise<EncryptedPassword[]> {
       website,
       username as user,
       encrypted_password as password,
-      created_at as "createdAt"
-    FROM keys 
+      EXTRACT(EPOCH FROM created_at) * 1000 as "createdAt"
+    FROM keys
     WHERE user_id = ${userId}
   `;
   return rows as EncryptedPassword[];
@@ -309,21 +363,24 @@ export async function writePassword(
 ): Promise<void> {
   await sql`
     INSERT INTO passwords (
-      id, user_id, website, username, encrypted_password, 
+      id,
+      user_id,
+      website,
+      username,
+      encrypted_password
     )
     VALUES (
       ${password.id},
       ${userId},
       ${password.website},
       ${password.user},
-      ${password.password},
-      ${password.createdAt},
+      ${password.password}
     )
     ON CONFLICT (id, user_id) DO UPDATE
-    SET 
+    SET
       website = EXCLUDED.website,
       username = EXCLUDED.username,
-      encrypted_password = EXCLUDED.encrypted_password,
+      encrypted_password = EXCLUDED.encrypted_password
   `;
 }
 
@@ -341,29 +398,38 @@ export async function readPasswords(userId: string): Promise<EncryptedPassword[]
   return rows as EncryptedPassword[];
 }
 
-export async function writeAuditLog(log: AuditLog): Promise<void> {
+
+export async function deletePassword(userId: string, passwordId: string): Promise<void> {
   await sql`
-    INSERT INTO audit_logs (
-      id, timestamp, action, user_id, 
-      resource_type, resource_id, metadata
-    )
-    VALUES (
-      ${log.id},
-      ${log.timestamp},
-      ${log.action},
-      ${log.userId},
-      ${log.resourceType},
-      ${log.resourceId},
-      ${JSON.stringify(log.metadata)}
-    )
+    DELETE FROM passwords 
+    WHERE user_id = ${userId} 
+    AND id = ${passwordId}
+  `;
+}
+export async function deleteKey(userId: string, passwordId: string): Promise<void> {
+  await sql`
+    DELETE FROM keys 
+    WHERE user_id = ${userId} 
+    AND id = ${passwordId}
   `;
 }
 
-export async function deletePassword(userId: string, id: string): Promise<void> {
-  await sql`
-    DELETE FROM passwords 
+export async function getKeysById(
+  userId: string,
+  id: string
+): Promise<EncryptedPassword | null> {
+  const { rows } = await sql`
+    SELECT 
+      id,
+      website,
+      username as user,
+      encrypted_password as password,
+      created_at as "createdAt"
+    FROM keys
     WHERE id = ${id} AND user_id = ${userId}
   `;
+
+  return rows.length > 0 ? (rows[0] as EncryptedPassword) : null;
 }
 
 export async function getPasswordById(
@@ -452,6 +518,97 @@ export async function deleteUser(userId: string): Promise<void> {
     await sql`ROLLBACK;`;
     
     console.error(`Failed to delete user ${userId}:`, error);
+    throw error;
+  }
+}
+
+
+export async function upsertDevice(
+  userId: string,
+  browser: string,
+  os: string
+): Promise<Device> {
+  const { rows } = await sql`
+    INSERT INTO devices (
+      id,
+      user_id,
+      browser,
+      os,
+      last_active,
+      session_active
+    )
+    VALUES (
+      ${crypto.randomUUID()},
+      ${userId},
+      ${browser},
+      ${os},
+      CURRENT_TIMESTAMP,
+      TRUE
+    )
+    ON CONFLICT (user_id, browser, os) 
+    DO UPDATE SET
+      last_active = CURRENT_TIMESTAMP,
+      session_active = TRUE
+    RETURNING 
+      id,
+      user_id as "userId",
+      browser,
+      os,
+      last_active as "lastActive",
+      session_active as "sessionActive"
+  `;
+
+  return rows[0] as Device;
+}
+
+export async function getUserDevices(userId: string): Promise<Device[]> {
+  const { rows } = await sql`
+    SELECT 
+      id,
+      user_id as "userId",
+      browser,
+      os,
+      last_active as "lastActive",
+      session_active as "sessionActive"
+    FROM devices
+    WHERE user_id = ${userId}
+    ORDER BY last_active DESC
+  `;
+
+  return rows as Device[];
+}
+
+export async function deactivateDevice(deviceId: string): Promise<void> {
+  await sql`
+    UPDATE devices
+    SET session_active = FALSE
+    WHERE id = ${deviceId}
+  `;
+}
+
+export async function cleanupInactiveDevices(daysInactive: number = 30): Promise<void> {
+  await sql`
+    DELETE FROM devices
+    WHERE session_active = FALSE
+    AND last_active < NOW() - INTERVAL '${daysInactive} days'
+  `;
+}
+
+export async function recreateDatabase() {
+  try {
+    // Drop existing tables in reverse order of creation (to handle foreign key constraints)
+    await sql`DROP TABLE IF EXISTS devices CASCADE;`;
+    await sql`DROP TABLE IF EXISTS passwords CASCADE;`;
+    await sql`DROP TABLE IF EXISTS keys CASCADE;`;
+    await sql`DROP TABLE IF EXISTS settings CASCADE;`;
+    await sql`DROP TABLE IF EXISTS users CASCADE;`;
+
+    // Recreate all tables
+    await initDatabase();
+    
+    console.log("✅ Database recreated successfully");
+  } catch (error) {
+    console.error("❌ Error recreating database:", error);
     throw error;
   }
 }

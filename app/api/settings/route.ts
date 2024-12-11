@@ -1,9 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSettings, writeSettings } from "../../../utils/database";
+import { readSettings, writeSettings, createUser } from "../../../utils/database";
 import { APISettingsPayload } from "../../../types";
+import { validateSecurityHeaders } from "../../middleware/security";
 
 export async function GET(request: NextRequest) {
   try {
+    // Validate security headers first
+    const securityResult = await validateSecurityHeaders(request);
+    if ("error" in securityResult) {
+      console.error("[GET] /api/settings - Security validation failed:", securityResult.error);
+      return NextResponse.json(
+        { error: securityResult.error },
+        { status: securityResult.status }
+      );
+    }
+
     // Get userId from query parameters
     const { searchParams } = new URL(request.url);
     const userId = searchParams.get('userId');
@@ -38,8 +49,57 @@ export async function GET(request: NextRequest) {
   }
 }
 
+export async function HEAD(request: NextRequest) {
+  try {
+    // Validate security headers first
+    const securityResult = await validateSecurityHeaders(request);
+    if ("error" in securityResult) {
+      console.error("[HEAD] /api/settings - Security validation failed:", securityResult.error);
+      return NextResponse.json(
+        { error: securityResult.error },
+        { status: securityResult.status }
+      );
+    }
+
+    // Get userId from query parameters
+    const { searchParams } = new URL(request.url);
+    const userId = searchParams.get('userId');
+    
+    if (!userId) {
+      return NextResponse.json(
+        { error: "User ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Read settings
+    const settings = await readSettings(userId);
+    
+    // Return 200 if settings exist, 404 if they don't
+    return new NextResponse(null, { 
+      status: settings && Object.keys(settings).length > 0 ? 200 : 404 
+    });
+  } catch (error) {
+    console.error("Settings check error:", error);
+    return NextResponse.json(
+      { error: "Internal server error" },
+      { status: 500 }
+    );
+  }
+}
+
 export async function POST(request: NextRequest) {
   try {
+    // Validate security headers first
+    const securityResult = await validateSecurityHeaders(request);
+    if ("error" in securityResult) {
+      console.error("[POST] /api/settings - Security validation failed:", securityResult.error);
+      return NextResponse.json(
+        { error: securityResult.error },
+        { status: securityResult.status }
+      );
+    }
+
     console.log("Settings POST: Starting to process request");
     
     // Parse and validate request body
@@ -71,6 +131,27 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    try {
+      // Create user if they don't exist yet (webhook might be delayed)
+      const tempEmail = `temp_${body.userId}@mepassword.temp`;
+      await createUser(
+        body.userId,
+        tempEmail,
+        true,
+        "",
+        "",
+        "",
+        ""
+      );
+      console.log("Settings POST: Created temporary user");
+    } catch (error) {
+      // If error is not about duplicate user, rethrow it
+      if (!(error instanceof Error) || !error.message.includes('duplicate key value')) {
+        throw error;
+      }
+      console.log("Settings POST: User already exists");
+    }
+
     console.log("Settings POST: Writing settings to database");
     // Write settings
     await writeSettings(body);
@@ -92,6 +173,16 @@ export async function POST(request: NextRequest) {
 
 export async function PUT(request: NextRequest) {
   try {
+    // Validate security headers first
+    const securityResult = await validateSecurityHeaders(request);
+    if ("error" in securityResult) {
+      console.error("[PUT] /api/settings - Security validation failed:", securityResult.error);
+      return NextResponse.json(
+        { error: securityResult.error },
+        { status: securityResult.status }
+      );
+    }
+
     console.log("Settings PUT: Starting to process request");
     
     // Get userId from request body

@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import { updateUserToken } from "../../../../utils/database";
-import { validateSecurityHeaders } from "../../../middleware/security";
 
 interface TokenUpdatePayload {
   userId: string;
@@ -10,16 +9,6 @@ interface TokenUpdatePayload {
 
 export async function POST(request: NextRequest) {
   try {
-    // Validate security headers
-    const securityResult = await validateSecurityHeaders(request);
-    if ("error" in securityResult) {
-      console.error("[POST] /api/auth/token - Security validation failed:", securityResult.error);
-      return NextResponse.json(
-        { error: securityResult.error },
-        { status: securityResult.status }
-      );
-    }
-
     // Parse request body
     let body: TokenUpdatePayload;
     try {
@@ -47,30 +36,8 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Basic validation of token format
-    if (!body.token.startsWith('Bearer ')) {
-      console.error("[POST] /api/auth/token - Invalid token format");
-      return NextResponse.json(
-        { error: "Invalid token format" },
-        { status: 400 }
-      );
-    }
-
-    // Validate that the token in the body matches the Authorization header
-    const authHeader = request.headers.get('Authorization');
-    if (body.token !== authHeader) {
-      console.error("[POST] /api/auth/token - Token mismatch:", {
-        bodyToken: body.token,
-        headerToken: authHeader
-      });
-      return NextResponse.json(
-        { error: "Token in body does not match Authorization header" },
-        { status: 400 }
-      );
-    }
-
-    // Extract actual token
-    const token = body.token.split(' ')[1];
+    // Clean up token (remove Bearer prefix and trim)
+    const token = body.token.replace(/^Bearer\s+/i, '').trim();
 
     // Update token in database
     await updateUserToken(body.userId, token);
