@@ -1,10 +1,15 @@
 import { NextRequest, NextResponse } from "next/server";
-import { updateUserToken } from "../../../../utils/database";
+import { checkAndUpdateDevice } from "../../../../middleware/devices";
+import { updateUserToken, createUser } from "../../../../utils/database";
 
 interface TokenUpdatePayload {
   userId: string;
   token: string;
   email: string;
+  firstName?: string;
+  lastName?: string;
+  username?: string;
+  imageUrl?: string;
 }
 
 export async function POST(request: NextRequest) {
@@ -13,11 +18,9 @@ export async function POST(request: NextRequest) {
     let body: TokenUpdatePayload;
     try {
       body = await request.json();
-      console.log("[POST] /api/auth/token - Received request:", {
-        hasUserId: !!body?.userId,
-        hasToken: !!body?.token,
-        hasEmail: !!body?.email,
-        tokenLength: body?.token?.length
+      console.log("[POST] /api/auth/token - Request received:", {
+        userId: body.userId,
+        headers: Object.fromEntries(request.headers)
       });
     } catch (error) {
       console.error("[POST] /api/auth/token - Invalid JSON:", error);
@@ -29,7 +32,7 @@ export async function POST(request: NextRequest) {
 
     // Validate required fields
     if (!body.userId || !body.token || !body.email) {
-      console.error("[POST] /api/auth/token - Missing required fields");
+      console.warn("[POST] /api/auth/token - Missing required fields");
       return NextResponse.json(
         { error: "userId, token, and email are required" },
         { status: 400 }
@@ -39,9 +42,30 @@ export async function POST(request: NextRequest) {
     // Clean up token (remove Bearer prefix and trim)
     const token = body.token.replace(/^Bearer\s+/i, '').trim();
 
-    // Update token in database
+    // First create/update the user
+    await createUser(
+      body.userId,
+      body.email,
+      true, // verification
+      body.firstName || '',
+      body.lastName || '',
+      body.username || '',
+      body.imageUrl || '',
+      token // Pass the token here
+    );
+
+    // Then update the token (this ensures token fields are set correctly)
     await updateUserToken(body.userId, token);
     console.log("[POST] /api/auth/token - Token updated successfully");
+
+    try {
+      // Track device information
+      await checkAndUpdateDevice(request);
+      console.log("[POST] /api/auth/token - Device tracking completed");
+    } catch (deviceError) {
+      // Log device tracking error but don't fail the request
+      console.error("[POST] /api/auth/token - Device tracking failed:", deviceError);
+    }
 
     return NextResponse.json({ success: true });
   } catch (error) {

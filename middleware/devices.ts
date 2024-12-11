@@ -1,35 +1,37 @@
 import { NextRequest } from "next/server";
+import { UAParser } from "ua-parser-js";
 import { upsertDevice } from "../utils/database";
-import UAParser from "ua-parser-js";
 
-export async function checkAndUpdateDevice(request: NextRequest, userId: string) {
+export async function checkAndUpdateDevice(request: NextRequest): Promise<void> {
   try {
-    const userAgent = request.headers.get("user-agent");
-    if (!userAgent) {
-      return {
-        error: "No user agent found",
-        status: 400
-      };
+    const userId = request.headers.get('x-user-id') || 
+                  request.nextUrl.searchParams.get('userId');
+    
+    console.log("[checkAndUpdateDevice] Starting device check for userId:", userId);
+    
+    if (!userId) {
+      console.warn("[checkAndUpdateDevice] No userId found in request");
+      throw new Error("User ID is required");
     }
 
-    // Parse user agent
-    const parser = new UAParser.UAParser(userAgent);
-    const browser = parser.getBrowser();
-    const os = parser.getOS();
+    const userAgent = request.headers.get("user-agent");
+    console.log("[checkAndUpdateDevice] User agent:", userAgent);
 
-    // Update device info
-    await upsertDevice(
-      userId,
-      `${browser.name || "Unknown"} ${browser.version || ""}`.trim(),
-      `${os.name || "Unknown"} ${os.version || ""}`.trim()
-    );
+    if (!userAgent) {
+      console.warn("[checkAndUpdateDevice] No user-agent found in request");
+      throw new Error("User agent is required");
+    }
 
-    return { success: true };
+    const parser = new UAParser(userAgent);
+    const browser = parser.getBrowser().name || "Unknown";
+    const os = parser.getOS().name || "Unknown";
+    
+    console.log("[checkAndUpdateDevice] Parsed device info:", { browser, os });
+
+    const device = await upsertDevice(userId, browser, os);
+    console.log("[checkAndUpdateDevice] Device upserted successfully:", device);
   } catch (error) {
-    console.error("Error updating device info:", error);
-    return {
-      error: "Failed to update device info",
-      status: 500
-    };
+    console.error("[checkAndUpdateDevice] Error:", error);
+    throw error;
   }
 }

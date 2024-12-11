@@ -1,38 +1,45 @@
 import { NextRequest } from "next/server";
-import { validateAuthToken } from "./auth";
 import { checkAndUpdateDevice } from "./devices";
+import { validateAuthToken } from "./auth";
 
 export async function validateSecurityHeaders(request: NextRequest) {
   try {
-    // Get userId from headers or query params
+    console.log("[validateSecurityHeaders] Starting validation");
+    
     const userId = request.headers.get('x-user-id') || 
                   request.nextUrl.searchParams.get('userId');
 
+    console.log("[validateSecurityHeaders] Headers:", { 
+      userId,
+      headers: Object.fromEntries(request.headers)
+    });
+
     if (!userId) {
-      return {
-        error: "User ID is required",
-        status: 400
-      };
+      console.warn("[validateSecurityHeaders] Missing userId");
+      return { error: "User ID is required", status: 401 };
     }
 
     // Validate auth token
     const authResult = await validateAuthToken(request, userId);
+    console.log("[validateSecurityHeaders] Auth validation result:", authResult);
+
     if ("error" in authResult) {
+      console.warn("[validateSecurityHeaders] Auth validation failed:", authResult.error);
       return authResult;
     }
 
-    // Check and update device info
-    const deviceResult = await checkAndUpdateDevice(request, userId);
-    if ("error" in deviceResult) {
-      return deviceResult;
+    try {
+      // Update device information
+      await checkAndUpdateDevice(request);
+      console.log("[validateSecurityHeaders] Device check completed");
+    } catch (error) {
+      console.error("[validateSecurityHeaders] Device check failed:", error);
+      // Don't fail validation for device errors
     }
 
-    return { success: true, userId };
+    return { valid: true };
   } catch (error) {
-    console.error("Security validation error:", error);
-    return {
-      error: "Security validation failed",
-      status: 500
-    };
+    console.error("[validateSecurityHeaders] Error:", error);
+    return { error: "Security validation failed", status: 500 };
   }
 }

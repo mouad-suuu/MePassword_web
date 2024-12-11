@@ -60,13 +60,15 @@ export async function initDatabase() {
 
     await sql`
       CREATE TABLE IF NOT EXISTS devices (
-        id TEXT PRIMARY KEY,
+        id TEXT PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id TEXT NOT NULL,
         browser TEXT NOT NULL,
         os TEXT NOT NULL,
+        device_name TEXT,
         last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         session_active BOOLEAN DEFAULT TRUE,
-        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+        UNIQUE(user_id, browser, os)
       );
     `;
 
@@ -132,20 +134,16 @@ export async function initDatabase() {
 
 export async function ensureDatabaseInitialized() {
   try {
-    // Check if users table exists
-    const { rows } = await sql`
-      SELECT EXISTS (
-        SELECT FROM information_schema.tables 
-        WHERE table_name = 'users'
-      );
-    `;
-
-    if (!rows[0].exists) {
-      console.log('Initializing database tables...');
-      await initDatabase();
-    }
+    await sql`DROP TABLE IF EXISTS devices CASCADE;`;
+    await sql`DROP TABLE IF EXISTS settings CASCADE;`;
+    await sql`DROP TABLE IF EXISTS keys CASCADE;`;
+    await sql`DROP TABLE IF EXISTS passwords CASCADE;`;
+    await sql`DROP TABLE IF EXISTS users CASCADE;`;
+    
+    await initDatabase();
+    console.log("✅ Database recreated successfully");
   } catch (error) {
-    console.error('Error checking/initializing database:', error);
+    console.error("❌ Error recreating database:", error);
     throw error;
   }
 }
@@ -526,39 +524,73 @@ export async function deleteUser(userId: string): Promise<void> {
 export async function upsertDevice(
   userId: string,
   browser: string,
-  os: string
+  os: string,
+  deviceName?: string
 ): Promise<Device> {
-  const { rows } = await sql`
-    INSERT INTO devices (
-      id,
-      user_id,
-      browser,
-      os,
-      last_active,
-      session_active
-    )
-    VALUES (
-      ${crypto.randomUUID()},
-      ${userId},
-      ${browser},
-      ${os},
-      CURRENT_TIMESTAMP,
-      TRUE
-    )
-    ON CONFLICT (user_id, browser, os) 
-    DO UPDATE SET
-      last_active = CURRENT_TIMESTAMP,
-      session_active = TRUE
-    RETURNING 
-      id,
-      user_id as "userId",
-      browser,
-      os,
-      last_active as "lastActive",
-      session_active as "sessionActive"
-  `;
+  try {
+    console.log("[upsertDevice] Starting device upsert:", { userId, browser, os, deviceName });
 
-  return rows[0] as Device;
+    // First try to update existing device
+    const { rows: existingRows } = await sql`
+      UPDATE devices 
+      SET 
+        last_active = CURRENT_TIMESTAMP,
+        session_active = TRUE,
+        device_name = COALESCE(${deviceName}, device_name)
+      WHERE 
+        user_id = ${userId} 
+        AND browser = ${browser} 
+        AND os = ${os}
+      RETURNING 
+        id,
+        user_id as "userId",
+        browser,
+        os,
+        device_name as "deviceName",
+        last_active as "lastActive",
+        session_active as "sessionActive"
+    `;
+
+    if (existingRows.length > 0) {
+      console.log("[upsertDevice] Updated existing device:", existingRows[0]);
+      return existingRows[0] as Device;
+    }
+
+    // If no existing device, insert new one
+    const { rows: newRows } = await sql`
+      INSERT INTO devices (
+        id,
+        user_id,
+        browser,
+        os,
+        device_name,
+        last_active,
+        session_active
+      ) VALUES (
+        gen_random_uuid(),
+        ${userId},
+        ${browser},
+        ${os},
+        ${deviceName},
+        CURRENT_TIMESTAMP,
+        TRUE
+      )
+      RETURNING 
+        id,
+        user_id as "userId",
+        browser,
+        os,
+        device_name as "deviceName",
+        last_active as "lastActive",
+        session_active as "sessionActive"
+    `;
+
+    console.log("[upsertDevice] Created new device:", newRows[0]);
+    return newRows[0] as Device;
+  } catch (error) {
+    console.error("[upsertDevice] Error:", error);
+    throw error;
+  }
 }
 
 export async function getUserDevices(userId: string): Promise<Device[]> {
@@ -568,6 +600,7 @@ export async function getUserDevices(userId: string): Promise<Device[]> {
       user_id as "userId",
       browser,
       os,
+      device_name as "deviceName",
       last_active as "lastActive",
       session_active as "sessionActive"
     FROM devices
@@ -586,12 +619,38 @@ export async function deactivateDevice(deviceId: string): Promise<void> {
   `;
 }
 
+export async function deactivateAllDevices(userId: string): Promise<void> {
+  try {
+    console.log("[deactivateAllDevices] Starting for userId:", userId);
+    await sql`
+      UPDATE devices 
+      SET session_active = FALSE 
+      WHERE user_id = ${userId}
+    `;
+    console.log("[deactivateAllDevices] Successfully deactivated all devices");
+  } catch (error) {
+    console.error("[deactivateAllDevices] Error:", error);
+    throw error;
+  }
+}
+
 export async function cleanupInactiveDevices(daysInactive: number = 30): Promise<void> {
-  await sql`
-    DELETE FROM devices
-    WHERE session_active = FALSE
-    AND last_active < NOW() - INTERVAL '${daysInactive} days'
-  `;
+  try {
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
+
+    await sql`
+      UPDATE devices 
+      SET session_active = FALSE
+      WHERE last_active < ${cutoffDate.toISOString()}
+      AND session_active = TRUE;
+    `;
+
+    console.log(`Deactivated devices inactive for more than ${daysInactive} days`);
+  } catch (error) {
+    console.error("Error cleaning up inactive devices:", error);
+    throw error;
+  }
 }
 
 export async function recreateDatabase() {

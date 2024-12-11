@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook, WebhookRequiredHeaders } from "svix";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { createUser, deleteUser, ensureDatabaseInitialized, recreateDatabase, performMaintenanceTasks } from "../../../utils/database";
+import { createUser, deleteUser, ensureDatabaseInitialized, recreateDatabase } from "../../../utils/database";
 import { headers } from "next/headers";
 
 console.log("🌐 Webhook Route Initialized");
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     // Ensure database is initialized with latest schema
     console.log("🔒 Ensuring database initialization");
-    await recreateDatabase();
+    await ensureDatabaseInitialized();
 
     console.log("📋 Extracting webhook headers");
     const headerPayload = await headers(); // Added await here
@@ -79,15 +79,6 @@ export async function POST(req: NextRequest) {
     };
 
     console.log(`📥 Processing webhook event: ${eventType}`);
-
-    // Run maintenance tasks before processing new events
-    try {
-      console.log("🧹 Running maintenance tasks");
-      await performMaintenanceTasks();
-    } catch (error) {
-      console.error("⚠️ Maintenance tasks failed:", error);
-      // Continue processing even if maintenance fails
-    }
 
     if (eventType === "user.created" || eventType === "user.updated") {
       const email = userData.email_addresses?.[0]?.email_address;

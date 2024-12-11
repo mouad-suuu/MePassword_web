@@ -1,103 +1,89 @@
 import { NextRequest } from "next/server";
-import { validateEnv } from "../utils/env";
 import { getUserToken } from "../utils/database";
+import { validateEnv } from "../utils/env";
 
-export async function validateAuthToken(request: NextRequest, providedUserId?: string) {
-  console.log("[validateAuthToken] Starting token validation");
-  validateEnv();
-  
-  const authHeader = request.headers.get("Authorization");
-  const userId = providedUserId || request.nextUrl.searchParams.get("userId");
-
-  console.log("[validateAuthToken] Request details:", {
-    hasAuthHeader: !!authHeader,
-    authHeaderPreview: authHeader?.substring(0, 50),
-    userId,
-    method: request.method,
-    url: request.url
-  });
-
-  if (!userId) {
-    console.log("[validateAuthToken] Missing userId parameter");
-    return {
-      error: "Missing userId parameter",
-      status: 400,
-    };
-  }
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    console.log("[validateAuthToken] Invalid auth header:", {
-      hasHeader: !!authHeader,
-      startsWithBearer: authHeader?.startsWith("Bearer "),
-    });
-    return {
-      error: "Missing or invalid authorization header",
-      status: 401,
-    };
-  }
-
+export async function validateAuthToken(request: NextRequest, providedUserId?: string): Promise<{ success: boolean, userId: string } | { error: string, status: number }> {
   try {
-    const token = authHeader.split(" ")[1];
-    console.log("[validateAuthToken] Extracted token:", {
-      tokenLength: token?.length,
-      tokenPreview: token?.substring(0, 50)
-    });
+    console.log("[validateAuthToken] Starting validation");
+    validateEnv();
     
-    // Get the stored token from the database
+    const userId = providedUserId || request.nextUrl.searchParams.get("userId");
+
+    console.log("[validateAuthToken] Request details:", {
+      userId,
+      method: request.method,
+      url: request.url
+    });
+
+    if (!userId) {
+      console.warn("[validateAuthToken] No userId provided");
+      return {
+        error: "User ID is required",
+        status: 401
+      };
+    }
+
+    // Get token from Authorization header or x-auth-token
+    const authHeader = request.headers.get('authorization');
+    const token = authHeader ? 
+      authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader
+      : request.headers.get('x-auth-token');
+
+    console.log("[validateAuthToken] Token extraction:", { 
+      hasAuthHeader: !!authHeader,
+      hasToken: !!token,
+      isBearerToken: authHeader?.startsWith('Bearer ') ?? false
+    });
+
+    if (!token) {
+      console.warn("[validateAuthToken] No token found in request");
+      return {
+        error: "Missing or invalid authorization header",
+        status: 401
+      };
+    }
+
+    // Get stored token
     const storedToken = await getUserToken(userId);
     console.log("[validateAuthToken] Retrieved stored token:", {
       hasStoredToken: !!storedToken?.token,
-      storedTokenLength: storedToken?.token?.length,
-      storedTokenPreview: storedToken?.token?.substring(0, 50),
       isExpired: storedToken?.expired
     });
 
-    if (!storedToken.token) {
-      console.log("[validateAuthToken] No token found for user");
+    if (!storedToken?.token) {
+      console.warn("[validateAuthToken] No stored token found for user");
       return {
         error: "No token found for user",
-        status: 401,
+        status: 401
       };
     }
 
     if (storedToken.expired) {
-      console.log("[validateAuthToken] Token has expired");
+      console.warn("[validateAuthToken] Token has expired");
       return {
         error: "Token has expired",
-        status: 401,
+        status: 401
       };
     }
 
     // Compare with stored token
-    const tokensMatch = token === storedToken.token;
-    console.log("[validateAuthToken] Token comparison:", {
-      tokensMatch,
-      incomingTokenLength: token?.length,
-      storedTokenLength: storedToken?.token?.length
-    });
+    const isValid = token === storedToken.token;
+    console.log("[validateAuthToken] Token validation result:", { isValid });
 
-    if (!tokensMatch) {
-      console.log("[validateAuthToken] Token mismatch");
+    if (!isValid) {
+      console.warn("[validateAuthToken] Token mismatch");
       return {
         error: "Invalid authentication token",
-        status: 403,
+        status: 403
       };
     }
 
-    console.log("[validateAuthToken] Token validation successful");
-    return { 
-      success: true,
-      userId: userId
-    };
+    return { success: true, userId };
   } catch (error) {
-    console.error("[validateAuthToken] Error during validation:", {
-      error,
-      errorMessage: error?.message,
-      stack: error?.stack
-    });
+    console.error("[validateAuthToken] Error:", error);
     return {
-      error: "Token validation failed",
-      status: 401,
+      error: "Authentication failed",
+      status: 500
     };
   }
 }

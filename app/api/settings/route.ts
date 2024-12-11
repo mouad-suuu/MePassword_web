@@ -27,13 +27,27 @@ export async function GET(request: NextRequest) {
     }
 
     // Read settings
-    const settings = await readSettings(userId);
+    let settings = await readSettings(userId);
 
+    // If no settings exist, create default settings
     if (!settings || Object.keys(settings).length === 0) {
-      return NextResponse.json(
-        { error: "Settings not found" },
-        { status: 404 }
-      );
+      const defaultSettings: APISettingsPayload = {
+        userId,
+        publicKey: '',  // Will be set later
+        password: '',   // Will be set later
+        deviceId: '',   // Will be set later
+        timestamp: Date.now(),
+        sessionSettings: {
+          autoLockTime: 5,
+          biometricVerification: false,
+          sessionTime: 5,
+          pushNotifications: true,
+          biometricType: "fingerprint"
+        }
+      };
+
+      await writeSettings(defaultSettings);
+      settings = defaultSettings;
     }
 
     return NextResponse.json({ settings });
