@@ -32,8 +32,7 @@ export default function DeviceCard({ device, onDelete }: DeviceCardProps) {
   return (
     <Card className="w-[350px]">
       <CardHeader>
-        <CardTitle>{device.name}</CardTitle>
-        <CardDescription>Last accessed: {new Date(device.lastAccessed).toLocaleDateString()}</CardDescription>
+        <CardDescription>Last accessed: {new Date(device.lastActive).toLocaleDateString()}</CardDescription>
       </CardHeader>
       <CardContent>
         <p className="text-sm text-muted-foreground">Device ID: {device.id}</p>
