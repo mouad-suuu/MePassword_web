@@ -4,7 +4,6 @@ import { TopNav } from '../components/navigation/TopNav';
 import { HeroSection } from '../components/sections/HeroSection';
 import { AboutSection } from '../components/sections/AboutSection';
 import FeaturesSection  from '../components/sections/FeaturesSection';
-import { SecuritySection } from '../components/sections/SecuritySection';
 import { OpenSourceSection } from '../components/sections/OpenSourceSection';
 import { Footer } from '../components/sections/Footer';
 import { CyberPattern } from '../components/ui/CyberPattern';
@@ -24,7 +23,6 @@ export default function Home() {
           <HeroSection />
           <AboutSection />
           <FeaturesSection />
-          <SecuritySection />
           <OpenSourceSection />
         </main>
         <Footer />

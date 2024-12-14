@@ -15,7 +15,6 @@ const navigation = [
   { name: 'Home', href: '#home' },
   { name: 'How It Works', href: '#about' },
   { name: 'Features', href: '#features' },
-  { name: 'Security', href: '#security' },
   { name: 'Open Source', href: '#open-source' },
 ];
 

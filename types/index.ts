@@ -20,16 +20,17 @@ export interface SymmetricKeys {
   length: 256;
   iv: string;
 }
-export interface Device {
+
+export type Device = {
   id: string;
   userId: string;
   browser: string;
   os: string;
+  deviceName: string | null;
   lastActive: Date;
   sessionActive: boolean;
-}
-
-
+  source: 'web' | 'extension' | 'unknown';
+};
 
 export interface PasswordMetadata {
   id: string;
@@ -48,14 +49,4 @@ export interface EncryptedPassword extends PasswordMetadata {
   MetaData?: PasswordMetadata;
 }
 
-export interface Device {
-  id: string;
-  userId: string;
-  browser: string;
-  os: string;
-  lastActive: Date;
-  sessionActive: boolean;
-}
-
 export type BiometricType = "face" | "fingerprint" | "none";
-

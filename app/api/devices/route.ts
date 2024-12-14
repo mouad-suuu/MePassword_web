@@ -1,15 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
-import { validateSecurityHeaders } from "../../../middleware/security";
 import { deactivateAllDevices, getUserDevices, deactivateDevice } from "../../../utils/database";
 import { Device } from "../../../types";
 
 // GET /api/devices - List all devices for a user
 export async function GET(request: NextRequest) {
   try {
-    const validation = await validateSecurityHeaders(request);
-    if ('error' in validation) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status });
-    }
 
     const userId = request.headers.get('x-user-id') || 
                   request.nextUrl.searchParams.get('userId');
@@ -32,10 +27,7 @@ export async function GET(request: NextRequest) {
 // POST /api/devices - Deactivate a device or all devices
 export async function POST(request: NextRequest) {
   try {
-    const validation = await validateSecurityHeaders(request);
-    if ('error' in validation) {
-      return NextResponse.json({ error: validation.error }, { status: validation.status });
-    }
+ 
 
     const userId = request.headers.get('x-user-id');
     if (!userId) {

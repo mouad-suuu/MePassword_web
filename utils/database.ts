@@ -2,6 +2,7 @@
 
 import { sql } from "@vercel/postgres";
 import { APISettingsPayload, EncryptedPassword, Device } from "../types";
+import { v4 as uuidv4 } from 'uuid';
 
 export async function initDatabase() {
   try {
@@ -67,8 +68,9 @@ export async function initDatabase() {
         device_name TEXT,
         last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
         session_active BOOLEAN DEFAULT TRUE,
+        source TEXT,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
-        UNIQUE(user_id, browser, os)
+        UNIQUE(user_id, browser, os, source)
       );
     `;
 
@@ -134,16 +136,24 @@ export async function initDatabase() {
 
 export async function ensureDatabaseInitialized() {
   try {
-    await sql`DROP TABLE IF EXISTS devices CASCADE;`;
-    await sql`DROP TABLE IF EXISTS settings CASCADE;`;
-    await sql`DROP TABLE IF EXISTS keys CASCADE;`;
-    await sql`DROP TABLE IF EXISTS passwords CASCADE;`;
-    await sql`DROP TABLE IF EXISTS users CASCADE;`;
-    
-    await initDatabase();
-    console.log("✅ Database recreated successfully");
+    // Check if tables exist by querying the information schema
+    const tablesExist = await sql`
+      SELECT EXISTS (
+        SELECT FROM information_schema.tables 
+        WHERE table_schema = 'public' 
+        AND table_name = 'users'
+      );
+    `;
+
+    // If tables don't exist, initialize the database
+    if (!tablesExist.rows[0].exists) {
+      await initDatabase();
+      console.log("✅ Database initialized successfully");
+    } else {
+      console.log("✅ Database tables already exist");
+    }
   } catch (error) {
-    console.error("❌ Error recreating database:", error);
+    console.error("❌ Error checking/initializing database:", error);
     throw error;
   }
 }
@@ -525,39 +535,19 @@ export async function upsertDevice(
   userId: string,
   browser: string,
   os: string,
-  deviceName?: string
+  deviceName?: string,
+  source: 'web' | 'extension' | 'unknown' = 'unknown'
 ): Promise<Device> {
   try {
-    console.log("[upsertDevice] Starting device upsert:", { userId, browser, os, deviceName });
+    console.log("[upsertDevice] Starting device upsert:", {
+      userId,
+      browser,
+      os,
+      deviceName,
+      source
+    });
 
-    // First try to update existing device
-    const { rows: existingRows } = await sql`
-      UPDATE devices 
-      SET 
-        last_active = CURRENT_TIMESTAMP,
-        session_active = TRUE,
-        device_name = COALESCE(${deviceName}, device_name)
-      WHERE 
-        user_id = ${userId} 
-        AND browser = ${browser} 
-        AND os = ${os}
-      RETURNING 
-        id,
-        user_id as "userId",
-        browser,
-        os,
-        device_name as "deviceName",
-        last_active as "lastActive",
-        session_active as "sessionActive"
-    `;
-
-    if (existingRows.length > 0) {
-      console.log("[upsertDevice] Updated existing device:", existingRows[0]);
-      return existingRows[0] as Device;
-    }
-
-    // If no existing device, insert new one
-    const { rows: newRows } = await sql`
+    const result = await sql`
       INSERT INTO devices (
         id,
         user_id,
@@ -565,28 +555,28 @@ export async function upsertDevice(
         os,
         device_name,
         last_active,
-        session_active
-      ) VALUES (
-        gen_random_uuid(),
+        session_active,
+        source
+      )
+      VALUES (
+        ${uuidv4()},
         ${userId},
         ${browser},
         ${os},
-        ${deviceName},
+        ${deviceName || null},
         CURRENT_TIMESTAMP,
-        TRUE
+        true,
+        ${source}
       )
-      RETURNING 
-        id,
-        user_id as "userId",
-        browser,
-        os,
-        device_name as "deviceName",
-        last_active as "lastActive",
-        session_active as "sessionActive"
+      ON CONFLICT (user_id, browser, os, source)
+      DO UPDATE SET
+        last_active = CURRENT_TIMESTAMP,
+        session_active = true,
+        device_name = COALESCE(${deviceName}, devices.device_name)
+      RETURNING *;
     `;
-
-    console.log("[upsertDevice] Created new device:", newRows[0]);
-    return newRows[0] as Device;
+    console.log("[upsertDevice] Updated existing device:", result.rows[0]);
+    return result.rows[0] as Device;
   } catch (error) {
     console.error("[upsertDevice] Error:", error);
     throw error;
@@ -602,7 +592,8 @@ export async function getUserDevices(userId: string): Promise<Device[]> {
       os,
       device_name as "deviceName",
       last_active as "lastActive",
-      session_active as "sessionActive"
+      session_active as "sessionActive",
+      source
     FROM devices
     WHERE user_id = ${userId}
     ORDER BY last_active DESC
@@ -653,21 +644,3 @@ export async function cleanupInactiveDevices(daysInactive: number = 30): Promise
   }
 }
 
-export async function recreateDatabase() {
-  try {
-    // Drop existing tables in reverse order of creation (to handle foreign key constraints)
-    await sql`DROP TABLE IF EXISTS devices CASCADE;`;
-    await sql`DROP TABLE IF EXISTS passwords CASCADE;`;
-    await sql`DROP TABLE IF EXISTS keys CASCADE;`;
-    await sql`DROP TABLE IF EXISTS settings CASCADE;`;
-    await sql`DROP TABLE IF EXISTS users CASCADE;`;
-
-    // Recreate all tables
-    await initDatabase();
-    
-    console.log("✅ Database recreated successfully");
-  } catch (error) {
-    console.error("❌ Error recreating database:", error);
-    throw error;
-  }
-}

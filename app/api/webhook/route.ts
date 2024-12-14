@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook, WebhookRequiredHeaders } from "svix";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { createUser, deleteUser, ensureDatabaseInitialized, recreateDatabase } from "../../../utils/database";
+import { createUser, deleteUser, ensureDatabaseInitialized } from "../../../utils/database";
 import { headers } from "next/headers";
 
 console.log("🌐 Webhook Route Initialized");

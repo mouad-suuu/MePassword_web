@@ -17,6 +17,9 @@ export default function DeviceCard({ device, onDelete }: DeviceCardProps) {
     try {
       const response = await fetch(`/api/devices/${device.id}`, {
         method: 'DELETE',
+        headers: {
+          'x-client-type': 'web'
+        }
       })
 
       if (!response.ok) {
@@ -38,6 +41,7 @@ export default function DeviceCard({ device, onDelete }: DeviceCardProps) {
         <p className="text-sm text-muted-foreground">Device ID: {device.id}</p>
         <p className="text-sm text-muted-foreground">Browser: {device.browser}</p>
         <p className="text-sm text-muted-foreground">OS: {device.os}</p>
+        <p className="text-sm text-muted-foreground">Device name: {device.source}</p>
       </CardContent>
       <CardFooter className="flex justify-end space-x-2">
         <Button

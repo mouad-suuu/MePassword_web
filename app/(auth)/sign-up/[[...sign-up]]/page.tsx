@@ -6,7 +6,7 @@ export default function Page() {
   return(
     <AuthWrapper>
       <div className='flex items-center justify-center flex-col gap-6'>
-        <SignUp afterSignUpUrl="/" signInUrl="/sign-in" />
+        <SignUp afterSignUpUrl="/dashboard" signInUrl="/sign-in" />
         
       </div>
     </AuthWrapper>

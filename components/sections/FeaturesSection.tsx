@@ -9,11 +9,11 @@ import BrowserIntegrationCard from '../features/BrowserIntegrationCard';
 import BackupRecoveryCard from '../features/BackupRecoveryCard';
 
 const features = [
+  { Component: BrowserIntegrationCard },
   { Component: WindowsHelloCard },
   { Component: EncryptionCard },
   { Component: ZeroKnowledgeCard },
   { Component: PasswordGenCard },
-  { Component: BrowserIntegrationCard },
   { Component: BackupRecoveryCard },
 ];
 

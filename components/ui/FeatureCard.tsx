@@ -2,10 +2,15 @@
 
 import { useState, useRef, MouseEvent } from 'react';
 
+interface Feature {
+  text: string;
+  icon: JSX.Element;
+}
+
 interface FeatureCardProps {
   title: string;
   description: string;
-  features: string[];
+  features: (string | Feature)[];
   icon: JSX.Element;
 }
 
@@ -69,9 +74,18 @@ export default function FeatureCard({ title, description, features, icon }: Feat
         <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">
           {description}
         </p>
-        <ul className="list-disc list-inside text-gray-600 space-y-2 mt-auto">
+        <ul className="list-none text-gray-600 space-y-3 mt-auto">
           {features.map((feature, index) => (
-            <li key={index}>{feature}</li>
+            <li key={index} className="flex items-center">
+              {typeof feature === 'string' ? (
+                feature
+              ) : (
+                <>
+                  {feature.icon}
+                  <span>{feature.text}</span>
+                </>
+              )}
+            </li>
           ))}
         </ul>
       </div>
