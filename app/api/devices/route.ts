@@ -1,18 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deactivateAllDevices, getUserDevices, deactivateDevice } from "../../../utils/database";
+import { deactivateAllDevices, getUserDevices, deactivateDevice, upsertDevice } from "../../../utils/database";
 import { Device } from "../../../types";
+import { Devices } from "../../../utils/device";
+import { validateAuthToken } from "../../../middleware/auth";
 
 // GET /api/devices - List all devices for a user
 export async function GET(request: NextRequest) {
   try {
-
-    const userId = request.headers.get('x-user-id') || 
-                  request.nextUrl.searchParams.get('userId');
-    
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    const authResult = await validateAuthToken(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
+    const { userId } = authResult;
     const devices = await getUserDevices(userId);
     return NextResponse.json({ devices });
   } catch (error) {
@@ -24,20 +24,25 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/devices - Deactivate a device or all devices
+// POST /api/devices - Register, deactivate a device or all devices
 export async function POST(request: NextRequest) {
   try {
- 
-
-    const userId = request.headers.get('x-user-id');
-    if (!userId) {
-      return NextResponse.json({ error: 'User ID is required' }, { status: 400 });
+    const authResult = await validateAuthToken(request);
+    if ('error' in authResult) {
+      return NextResponse.json({ error: authResult.error }, { status: authResult.status });
     }
 
+    const { userId } = authResult;
     const body = await request.json();
-    const { action, deviceId } = body;
+    const { action, deviceId, browser, os, source } = body;
 
-    if (action === 'deactivate') {
+    if (action === 'register') {
+      if (!browser || !os || !source) {
+        return NextResponse.json({ error: 'Browser, OS, and source are required' }, { status: 400 });
+      }
+      const device = await Devices.handleDeviceCheck(userId, browser, os, source as 'web' | 'extension' | 'unknown');
+      return NextResponse.json({ device });
+    } else if (action === 'deactivate') {
       if (!deviceId) {
         return NextResponse.json({ error: 'Device ID is required' }, { status: 400 });
       }
@@ -52,7 +57,7 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error('[POST /api/devices] Error:', error);
     return NextResponse.json(
-      { error: 'Failed to process request' },
+      { error: 'Failed to process device action' },
       { status: 500 }
     );
   }

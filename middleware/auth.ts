@@ -1,13 +1,19 @@
 import { NextRequest } from "next/server";
 import { getUserToken } from "../utils/database";
 import { validateEnv } from "../utils/env";
+import { Devices } from "../utils/device";
+import { useAuth } from '@clerk/nextjs';
+import { getAuth, currentUser } from '@clerk/nextjs/server';
 
 export async function validateAuthToken(request: NextRequest, providedUserId?: string): Promise<{ success: boolean, userId: string } | { error: string, status: number }> {
   try {
     console.log("[validateAuthToken] Starting validation");
     validateEnv();
     
-    const userId = providedUserId || request.nextUrl.searchParams.get("userId");
+    // Get userId from various possible sources
+    const userId = providedUserId || 
+                  request.headers.get('x-user-id') || 
+                  request.nextUrl.searchParams.get('userId');
 
     console.log("[validateAuthToken] Request details:", {
       userId,
@@ -23,11 +29,9 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
       };
     }
 
-    // Get token from Authorization header or x-auth-token
+    // Get token from Authorization header
     const authHeader = request.headers.get('authorization');
-    const token = authHeader ? 
-      authHeader.startsWith('Bearer ') ? authHeader.substring(7) : authHeader
-      : request.headers.get('x-auth-token');
+    const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
 
     console.log("[validateAuthToken] Token extraction:", { 
       hasAuthHeader: !!authHeader,
@@ -43,39 +47,76 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
       };
     }
 
-    // Get stored token
-    const storedToken = await getUserToken(userId);
-    console.log("[validateAuthToken] Retrieved stored token:", {
-      hasStoredToken: !!storedToken?.token,
-      isExpired: storedToken?.expired
-    });
+    // For web requests (Clerk authentication)
+    if (request.headers.get('x-request-source') === 'web') {
+      try {
+        // Use server-side auth check
+        const user = await currentUser();
+        const clerkUserId = user?.id;
+        
+        if (!clerkUserId || clerkUserId !== userId) {
+          console.warn("[validateAuthToken] Invalid Clerk session");
+          return {
+            error: "Invalid authentication",
+            status: 403
+          };
+        }
+      } catch (error) {
+        console.error("[validateAuthToken] Clerk auth error:", error);
+        return {
+          error: "Authentication failed",
+          status: 401
+        };
+      }
+    } else {
+      // For extension requests (custom token validation)
+      const storedToken = await getUserToken(userId);
+      console.log("[validateAuthToken] Retrieved stored token:", {
+        hasStoredToken: !!storedToken?.token,
+        isExpired: storedToken?.expired
+      });
 
-    if (!storedToken?.token) {
-      console.warn("[validateAuthToken] No stored token found for user");
-      return {
-        error: "No token found for user",
-        status: 401
-      };
+      if (!storedToken?.token) {
+        console.warn("[validateAuthToken] No stored token found for user");
+        return {
+          error: "No token found for user",
+          status: 401
+        };
+      }
+
+      if (storedToken.expired) {
+        console.warn("[validateAuthToken] Token has expired");
+        return {
+          error: "Token has expired",
+          status: 401
+        };
+      }
+
+      // Compare with stored token
+      const isValid = token === storedToken.token;
+      console.log("[validateAuthToken] Token validation result:", { isValid });
+
+      if (!isValid) {
+        console.warn("[validateAuthToken] Token mismatch");
+        return {
+          error: "Invalid authentication token",
+          status: 403
+        };
+      }
     }
 
-    if (storedToken.expired) {
-      console.warn("[validateAuthToken] Token has expired");
-      return {
-        error: "Token has expired",
-        status: 401
-      };
-    }
+    // Check and update device information
+    try {
+      const browser = request.headers.get('x-device-browser') || 'Unknown Browser';
+      const os = request.headers.get('x-device-os') || 'Unknown OS';
+      const source = (request.headers.get('x-request-source') || request.headers.get('x-client-type') || 'unknown') as 'web' | 'extension' | 'unknown';
 
-    // Compare with stored token
-    const isValid = token === storedToken.token;
-    console.log("[validateAuthToken] Token validation result:", { isValid });
-
-    if (!isValid) {
-      console.warn("[validateAuthToken] Token mismatch");
-      return {
-        error: "Invalid authentication token",
-        status: 403
-      };
+      console.log("[validateAuthToken] Device info:", { browser, os, source });
+      
+      await Devices.handleDeviceCheck(userId, browser, os, source);
+    } catch (error) {
+      console.error("[validateAuthToken] Device check failed:", error);
+      // Continue with authentication even if device check fails
     }
 
     return { success: true, userId };

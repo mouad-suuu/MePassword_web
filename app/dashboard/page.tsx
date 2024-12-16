@@ -1,10 +1,14 @@
 'use client';
 
-import { useUser, useAuth } from '@clerk/nextjs';
+import { useUser, useAuth, useClerk, SignOutButton } from '@clerk/nextjs';
 import { useEffect, useState } from 'react';
 import { CyberPattern } from '../../components/ui/CyberPattern';
 import { Laptop, Smartphone, Tablet, RefreshCw } from 'lucide-react';
 import { TopNav } from '../../components/navigation/TopNavDashboard';
+import { Button } from '../../components/ui/button';
+import { useRouter } from 'next/navigation'; 
+
+
 
 interface Device {
   id: string;
@@ -22,30 +26,61 @@ export default function DashboardPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [sessionIds, setSessionIds] = useState<string[]>([]);
 
+  const { signOut } = useClerk();
+
+  // In your component:
+  const router = useRouter();  
+
+const handleSignOutAllDevices = async () => {
+  try {
+    // Signs out from all sessions with options
+    await signOut({
+      redirectUrl: '/'
+    });
+    router.push('/');
+  } catch (err) {
+    console.error("Error signing out from all devices:", err);
+  }
+};
   useEffect(() => {
     const fetchDevices = async () => {
       try {
         setLoading(true);
         setError(null);
 
+        // Get device information
+        const userAgent = window.navigator.userAgent;
+        const browser = getBrowserInfo(userAgent);
+        const os = getOSInfo(userAgent);
+
         const token = await getToken();
-        const response = await fetch(`/api/devices?userId=${user?.id}`, {
+        if (!token || !user?.id) {
+          throw new Error('Not authenticated');
+        }
+
+        const response = await fetch(`/api/devices`, {
           headers: {
             'Authorization': `Bearer ${token}`,
-            'x-user-id': user?.id || '',
-            'x-client-type': 'web'
+            'Content-Type': 'application/json',
+            'X-Device-Browser': browser,
+            'X-Device-OS': os,
+            'X-Request-Source': 'web',
+            'X-User-ID': user.id
           }
         });
+
         if (!response.ok) {
-          console.error('Failed to fetch devices:', response.status);
-          return;
+          const errorData = await response.json().catch(() => ({}));
+          throw new Error(errorData.error || 'Failed to fetch devices');
         }
 
         const data = await response.json();
-        setDevices(data.devices || []);
-      } catch (error) {
-        console.error('Error fetching devices:', error);
+        setDevices(data.devices);
+      } catch (err) {
+        console.error('Error fetching devices:', err);
+        setError(err instanceof Error ? err.message : 'Failed to fetch devices');
       } finally {
         setLoading(false);
       }
@@ -55,6 +90,25 @@ export default function DashboardPage() {
       fetchDevices();
     }
   }, [user?.id, getToken]);
+
+  // Helper function to get browser info
+  const getBrowserInfo = (userAgent: string): string => {
+    if (userAgent.includes('Chrome')) return 'Chrome';
+    if (userAgent.includes('Firefox')) return 'Firefox';
+    if (userAgent.includes('Safari')) return 'Safari';
+    if (userAgent.includes('Edge')) return 'Edge';
+    return 'Unknown Browser';
+  };
+
+  // Helper function to get OS info
+  const getOSInfo = (userAgent: string): string => {
+    if (userAgent.includes('Windows')) return 'Windows';
+    if (userAgent.includes('Mac')) return 'MacOS';
+    if (userAgent.includes('Linux')) return 'Linux';
+    if (userAgent.includes('Android')) return 'Android';
+    if (userAgent.includes('iOS')) return 'iOS';
+    return 'Unknown OS';
+  };
 
   const getDeviceIcon = (device: Device) => {
     const os = device.os.toLowerCase();
@@ -117,7 +171,7 @@ export default function DashboardPage() {
               {/* Devices Section */}
               <div className="p-8">
                 <h2 className="text-2xl font-semibold text-gray-900 dark:text-white mb-6">Devices Connected to your account</h2>
-                
+
                 {loading ? (
                   <div className="flex justify-center py-8">
                     <RefreshCw className="w-8 h-8 animate-spin text-primary" />
@@ -148,11 +202,10 @@ export default function DashboardPage() {
                               {new Date(device.lastActive).toLocaleDateString()}
                             </td>
                             <td className="py-4">
-                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                device.sessionActive
+                              <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${device.sessionActive
                                   ? 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400'
                                   : 'bg-gray-100 text-gray-800 dark:bg-gray-900/30 dark:text-gray-400'
-                              }`}>
+                                }`}>
                                 {device.sessionActive ? 'Active' : 'Inactive'}
                               </span>
                             </td>
@@ -163,6 +216,15 @@ export default function DashboardPage() {
                         ))}
                       </tbody>
                     </table>
+                    <SignOutButton>
+                    <Button
+                      variant="destructive"
+                      size="sm"
+                      // onClick={handleSignOutAllDevices}
+                      className="w-full mt-4"
+                    >
+                      Sign Out All Devices
+                    </Button></SignOutButton>
                   </div>
                 ) : (
                   <p className="text-center text-gray-500 dark:text-gray-400 py-8">No devices found</p>

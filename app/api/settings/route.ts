@@ -65,15 +65,15 @@ export async function GET(request: NextRequest) {
 
 export async function HEAD(request: NextRequest) {
   try {
-    // Validate security headers first
-    const securityResult = await validateSecurityHeaders(request);
-    if ("error" in securityResult) {
-      console.error("[HEAD] /api/settings - Security validation failed:", securityResult.error);
-      return NextResponse.json(
-        { error: securityResult.error },
-        { status: securityResult.status }
-      );
-    }
+    // // Validate security headers first
+    // const securityResult = await validateSecurityHeaders(request);
+    // if ("error" in securityResult) {
+    //   console.error("[HEAD] /api/settings - Security validation failed:", securityResult.error);
+    //   return NextResponse.json(
+    //     { error: securityResult.error },
+    //     { status: securityResult.status }
+    //   );
+    // }
 
     // Get userId from query parameters
     const { searchParams } = new URL(request.url);

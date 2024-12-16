@@ -1,79 +1,84 @@
 import { sql } from "@vercel/postgres";
 import { Device } from "../types";
+import { upsertDevice, getUserDevices, deactivateDevice } from "./database";
 
-export async function upsertDevice(
-  userId: string,
-  browser: string,
-  os: string
-): Promise<Device> {
-  const result = await sql`
-    INSERT INTO devices (
-      id,
-      user_id,
-      browser,
-      os,
-      last_active,
-      session_active
-    )
-    VALUES (
-      gen_random_uuid(),
-      ${userId},
-      ${browser},
-      ${os},
-      CURRENT_TIMESTAMP,
-      TRUE
-    )
-    ON CONFLICT (user_id, browser, os)
-    DO UPDATE SET
-      last_active = CURRENT_TIMESTAMP,
-      session_active = TRUE
-    RETURNING *;
-  `;
+export class Devices {
+  /**
+   * Check if a device exists and update its last active timestamp
+   */
+  public static async ExistedDevices(
+    userId: string,
+    browser: string,
+    os: string,
+    source: 'web' | 'extension' | 'unknown'
+  ): Promise<Device | null> {
+    try {
+      // Get all user devices
+      const devices = await getUserDevices(userId);
+      
+      // Find matching device
+      const existingDevice = devices.find(
+        device => 
+          device.browser === browser && 
+          device.os === os && 
+          device.source === source
+      );
 
-  return result.rows[0] as Device;
-}
+      if (existingDevice) {
+        // Update last active timestamp
+        await upsertDevice(userId, browser, os, existingDevice.deviceName, source);
+        return existingDevice;
+      }
 
-export async function getUserDevices(userId: string): Promise<Device[]> {
-  const result = await sql`
-    SELECT *
-    FROM devices
-    WHERE user_id = ${userId}
-    ORDER BY last_active DESC;
-  `;
+      return null;
+    } catch (error) {
+      console.error('[ExistedDevices] Error:', error);
+      throw error;
+    }
+  }
 
-  return result.rows as Device[];
-}
+  /**
+   * Register a new device or update existing one
+   */
+  public static async IsNewDevices(
+    userId: string,
+    browser: string,
+    os: string,
+    source: 'web' | 'extension' | 'unknown'
+  ): Promise<Device> {
+    try {
+      // Check if device exists
+      const existingDevice = await this.ExistedDevices(userId, browser, os, source);
+      
+      if (!existingDevice) {
+        // Register new device
+        console.log('[IsNewDevices] Registering new device');
+        return await upsertDevice(userId, browser, os, undefined, source);
+      }
 
-export async function deactivateDevice(deviceId: string): Promise<void> {
-  await sql`
-    UPDATE devices
-    SET session_active = FALSE
-    WHERE id = ${deviceId};
-  `;
-}
+      console.log('[IsNewDevices] Device already exists');
+      return existingDevice;
+    } catch (error) {
+      console.error('[IsNewDevices] Error:', error);
+      throw error;
+    }
+  }
 
-export async function cleanupInactiveDevices(daysInactive: number = 30): Promise<void> {
-  const cutoffDate = new Date();
-  cutoffDate.setDate(cutoffDate.getDate() - daysInactive);
-
-  await sql`
-    DELETE FROM devices
-    WHERE last_active < ${cutoffDate.toISOString()}
-    AND session_active = FALSE;
-  `;
-}
-
-export async function initDeviceTable(): Promise<void> {
-  await sql`
-    CREATE TABLE IF NOT EXISTS devices (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      browser TEXT NOT NULL,
-      os TEXT NOT NULL,
-      last_active TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
-      session_active BOOLEAN DEFAULT TRUE,
-      FOREIGN KEY (user_id) REFERENCES users(id),
-      UNIQUE(user_id, browser, os)
-    );
-  `;
+  /**
+   * Handle device check during auth token verification
+   */
+  public static async handleDeviceCheck(
+    userId: string,
+    browser: string,
+    os: string,
+    source: 'web' | 'extension' | 'unknown'
+  ): Promise<Device> {
+    try {
+      // Always try to register/update device during token check
+      return await this.IsNewDevices(userId, browser, os, source);
+    } catch (error) {
+      console.error('[handleDeviceCheck] Error:', error);
+      throw error;
+    }
+  }
 }
