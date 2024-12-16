@@ -41,8 +41,10 @@ export async function initDatabase() {
         user_id TEXT,
         website TEXT,
         username TEXT,
+        owner_email TEXT DEFAULT 'USER',
         encrypted_password TEXT NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        owner_id TEXT REFERENCES users(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
     `;
@@ -53,8 +55,10 @@ export async function initDatabase() {
         user_id TEXT,
         website TEXT,
         username TEXT,
+        owner_email TEXT DEFAULT 'USER',
         encrypted_password TEXT NOT NULL,
         created_at TIMESTAMP WITH TIME ZONE DEFAULT CURRENT_TIMESTAMP,
+        owner_id TEXT REFERENCES users(id),
         FOREIGN KEY (user_id) REFERENCES users(id)
       );
     `;
@@ -334,14 +338,16 @@ export async function writeKeys(
       user_id,
       website,
       username,
-      encrypted_password
+      encrypted_password,
+      owner_id
     )
     VALUES (
       ${password.id},
       ${userId},
       ${password.website},
       ${password.user},
-      ${password.password}
+      ${password.password},
+      ${userId}
     )
     ON CONFLICT (id, user_id) DO UPDATE
     SET
@@ -375,14 +381,16 @@ export async function writePassword(
       user_id,
       website,
       username,
-      encrypted_password
+      encrypted_password,
+      owner_id
     )
     VALUES (
       ${password.id},
       ${userId},
       ${password.website},
       ${password.user},
-      ${password.password}
+      ${password.password},
+      ${userId}
     )
     ON CONFLICT (id, user_id) DO UPDATE
     SET
@@ -644,3 +652,126 @@ export async function cleanupInactiveDevices(daysInactive: number = 30): Promise
   }
 }
 
+/**
+ * Search for users by email pattern
+ */
+export async function searchUsersByEmail(
+  email: string,
+  limit: number = 5
+): Promise<{ id: string; email: string; username: string }[]> {
+  try {
+    const result = await sql`
+      SELECT id, email, username
+      FROM users
+      WHERE email ILIKE ${`%${email}%`}
+      LIMIT ${limit}
+    `;
+    return result.rows as { id: string; email: string; username: string }[];
+  } catch (error) {
+    console.error('[searchUsersByEmail] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Get user's public key by email
+ */
+export async function getUserPublicKeyByEmail(
+  email: string
+): Promise<{ userId: string; publicKey: string | null }> {
+  try {
+    const result = await sql`
+      SELECT u.id as user_id, s.public_key
+      FROM users u
+      LEFT JOIN settings s ON u.id = s.user_id
+      WHERE u.email = ${email}
+      LIMIT 1
+    `;
+
+    if (result.rows.length === 0) {
+      throw new Error('User not found');
+    }
+
+    return {
+      userId: result.rows[0].user_id,
+      publicKey: result.rows[0].public_key
+    };
+  } catch (error) {
+    console.error('[getUserPublicKeyByEmail] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Share passwords with another user
+ */
+export async function sharePasswords(
+  recipientId: string,
+  passwords: EncryptedPassword[],
+  originalOwnerId: string
+): Promise<void> {
+  try {
+    for (const password of passwords) {
+      await sql`
+        INSERT INTO passwords (
+          id,
+          user_id,
+          website,
+          username,
+          owner_email,
+          encrypted_password,
+          owner_id,
+          created_at
+        ) VALUES (
+          ${uuidv4()},
+          ${recipientId},
+          ${password.website},
+          ${password.user},
+          ${password.owner_email},
+          ${password.encrypted_password},
+          ${originalOwnerId},
+          CURRENT_TIMESTAMP
+        )
+      `;
+    }
+  } catch (error) {
+    console.error('[sharePasswords] Error:', error);
+    throw error;
+  }
+}
+
+/**
+ * Share keys with another user
+ */
+export async function shareKeys(
+  recipientId: string,
+  keys: EncryptedPassword[],
+  originalOwnerId: string
+): Promise<void> {
+  try {
+    for (const key of keys) {
+      await sql`
+        INSERT INTO keys (
+          id,
+          user_id,
+          website,
+          owner_email,
+          encrypted_password,
+          owner_id,
+          created_at
+        ) VALUES (
+          ${uuidv4()},
+          ${recipientId},
+          ${key.website},
+          ${key.owner_email},
+          ${key.password},
+          ${originalOwnerId},
+          CURRENT_TIMESTAMP
+        )
+      `;
+    }
+  } catch (error) {
+    console.error('[shareKeys] Error:', error);
+    throw error;
+  }
+}
