@@ -1,13 +1,11 @@
 import { NextRequest } from "next/server";
 import Database from "../services/database";
-import { validateEnv } from "../utils/env";
 import { Devices } from "../utils/device";
 import { useAuth } from '@clerk/nextjs';
 import { getAuth, currentUser } from '@clerk/nextjs/server';
 
 export async function validateAuthToken(request: NextRequest, providedUserId?: string): Promise<{ success: boolean, userId: string } | { error: string, status: number }> {
   try {
-    validateEnv();
     
     // Get userId from various possible sources
     const userId = providedUserId || 
