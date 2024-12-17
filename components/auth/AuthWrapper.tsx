@@ -8,18 +8,14 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
   const [isMounted, setIsMounted] = useState(false);
 
   useEffect(() => {
-    console.log('AuthWrapper: Component mounted');
     setIsMounted(true);
   }, []);
 
   useEffect(() => {
-    console.log('AuthWrapper: User signed in status changed:', isSignedIn);
-    console.log('AuthWrapper: Current user:', user);
 
     if (!isMounted) return;
 
     if (isSignedIn && user) {
-      console.log('AuthWrapper: User authenticated, preparing login success message');
       
       try {
         // Send message to extension with more user data
@@ -36,7 +32,6 @@ export const AuthWrapper = ({ children }: { children: React.ReactNode }) => {
           }
         }, '*');
         
-        console.log('AuthWrapper: Login success message sent to extension');
       } catch (error) {
         console.error('AuthWrapper: Error sending login success message:', error);
       }

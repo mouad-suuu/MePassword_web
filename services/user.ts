@@ -139,7 +139,6 @@ public async  initDatabase() {
         ADD PRIMARY KEY (id, user_id);
       `;
 
-      console.log('Database initialized successfully');
     } catch (error) {
       console.error('Failed to initialize database:', error);
       throw error;
@@ -160,9 +159,7 @@ public async  ensureDatabaseInitialized() {
     // If tables don't exist, initialize the database
     if (!tablesExist.rows[0].exists) {
       await this.initDatabase();
-      console.log("✅ Database initialized successfully");
     } else {
-      console.log("✅ Database tables already exist");
     }
   } catch (error) {
     console.error("❌ Error checking/initializing database:", error);
@@ -223,12 +220,6 @@ public async  updateUserToken(
   encryptedToken: string,
   expiresInDays: number = 30
 ): Promise<void> {
-  console.log("[updateUserToken] Starting token update:", {
-    userId,
-    tokenLength: encryptedToken?.length,
-    tokenPreview: encryptedToken?.substring(0, 50),
-    expiresInDays
-  });
 
   const expiresAt = new Date();
   expiresAt.setDate(expiresAt.getDate() + expiresInDays);
@@ -242,7 +233,6 @@ public async  updateUserToken(
         last_login = CURRENT_TIMESTAMP
       WHERE id = ${userId};
     `;
-    console.log("[updateUserToken] Token updated successfully");
   } catch (error) {
     console.error("[updateUserToken] Error updating token:", error);
     throw error;
@@ -250,7 +240,6 @@ public async  updateUserToken(
 }
 
 public async  getUserToken(userId: string): Promise<{ token: string | null, expired: boolean }> {
-  console.log("[getUserToken] Fetching token for user:", userId);
 
   const result = await sql`
     SELECT encrypted_token, token_expires_at
@@ -258,14 +247,7 @@ public async  getUserToken(userId: string): Promise<{ token: string | null, expi
     WHERE id = ${userId};
   `;
 
-  console.log("[getUserToken] Database result:", {
-    hasRows: result.rows.length > 0,
-    hasToken: !!result.rows[0]?.encrypted_token,
-    expiresAt: result.rows[0]?.token_expires_at
-  });
-
   if (result.rows.length === 0 || !result.rows[0].encrypted_token) {
-    console.log("[getUserToken] No token found for user");
     return { token: null, expired: true };
   }
 
@@ -273,11 +255,6 @@ public async  getUserToken(userId: string): Promise<{ token: string | null, expi
     ? new Date(result.rows[0].token_expires_at) < new Date() 
     : false;
 
-  console.log("[getUserToken] Returning token:", {
-    tokenLength: result.rows[0].encrypted_token?.length,
-    tokenPreview: result.rows[0].encrypted_token?.substring(0, 50),
-    expired
-  });
 
   return {
     token: result.rows[0].encrypted_token,
@@ -312,7 +289,6 @@ public async  deleteUser(userId: string): Promise<void> {
       // Commit the transaction
       await sql`COMMIT;`;
   
-      console.log(`User ${userId} and all associated data deleted successfully`);
     } catch (error) {
       // Rollback the transaction in case of any error
       await sql`ROLLBACK;`;

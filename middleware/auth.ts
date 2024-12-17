@@ -7,7 +7,6 @@ import { getAuth, currentUser } from '@clerk/nextjs/server';
 
 export async function validateAuthToken(request: NextRequest, providedUserId?: string): Promise<{ success: boolean, userId: string } | { error: string, status: number }> {
   try {
-    console.log("[validateAuthToken] Starting validation");
     validateEnv();
     
     // Get userId from various possible sources
@@ -15,11 +14,6 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
                   request.headers.get('x-user-id') || 
                   request.nextUrl.searchParams.get('userId');
 
-    console.log("[validateAuthToken] Request details:", {
-      userId,
-      method: request.method,
-      url: request.url
-    });
 
     if (!userId) {
       console.warn("[validateAuthToken] No userId provided");
@@ -33,14 +27,8 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
     const authHeader = request.headers.get('authorization');
     const token = authHeader?.startsWith('Bearer ') ? authHeader.substring(7) : authHeader;
 
-    console.log("[validateAuthToken] Token extraction:", { 
-      hasAuthHeader: !!authHeader,
-      hasToken: !!token,
-      isBearerToken: authHeader?.startsWith('Bearer ') ?? false
-    });
 
     if (!token) {
-      console.warn("[validateAuthToken] No token found in request");
       return {
         error: "Missing or invalid authorization header",
         status: 401
@@ -71,10 +59,6 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
     } else {
       // For extension requests (custom token validation)
       const storedToken = await Database.userService.getUserToken(userId);
-      console.log("[validateAuthToken] Retrieved stored token:", {
-        hasStoredToken: !!storedToken?.token,
-        isExpired: storedToken?.expired
-      });
 
       if (!storedToken?.token) {
         console.warn("[validateAuthToken] No stored token found for user");
@@ -94,7 +78,6 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
 
       // Compare with stored token
       const isValid = token === storedToken.token;
-      console.log("[validateAuthToken] Token validation result:", { isValid });
 
       if (!isValid) {
         console.warn("[validateAuthToken] Token mismatch");
@@ -111,7 +94,6 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
       const os = request.headers.get('x-device-os') || 'Unknown OS';
       const source = (request.headers.get('x-request-source') || request.headers.get('x-client-type') || 'unknown') as 'web' | 'extension' | 'unknown';
 
-      console.log("[validateAuthToken] Device info:", { browser, os, source });
       
       await Devices.handleDeviceCheck(userId, browser, os, source);
     } catch (error) {

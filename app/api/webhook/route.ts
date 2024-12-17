@@ -1,33 +1,23 @@
 import { NextRequest, NextResponse } from "next/server";
-import { Webhook, WebhookRequiredHeaders } from "svix";
+import { Webhook } from "svix";
 import { WebhookEvent } from "@clerk/nextjs/server";
 import Database from "../../../services/database";
 import { headers } from "next/headers";
 
-console.log("🌐 Webhook Route Initialized");
-console.log("Webhook Secret:", process.env.WEBHOOK_SECRET ? "✅ Present" : "❌ Missing");
 
 const webhookSecret = process.env.WEBHOOK_SECRET;
 
 export async function POST(req: NextRequest) {
-  console.log("🚀 Webhook POST method called");
 
   try {
     // Ensure database is initialized with latest schema
-    console.log("🔒 Ensuring database initialization");
     await Database.userService.ensureDatabaseInitialized();
 
-    console.log("📋 Extracting webhook headers");
     const headerPayload = await headers(); // Added await here
     const svixId = headerPayload.get("svix-id");
     const svixTimestamp = headerPayload.get("svix-timestamp");
     const svixSignature = headerPayload.get("svix-signature");
 
-    console.log("🔍 Webhook Headers:", {
-      svixId: svixId ? "✅ Present" : "❌ Missing",
-      svixTimestamp: svixTimestamp ? "✅ Present" : "❌ Missing",
-      svixSignature: svixSignature ? "✅ Present" : "❌ Missing"
-    });
 
     if (!svixId || !svixTimestamp || !svixSignature) {
       console.error("❌ Missing required Svix headers");
@@ -64,7 +54,6 @@ export async function POST(req: NextRequest) {
 
     // Type guard for user events
     if (!("email_addresses" in evt.data)) {
-      console.log("ℹ️ Non-user event received:", evt.type);
       return new NextResponse("Success", { status: 200 });
     }
 
@@ -78,7 +67,6 @@ export async function POST(req: NextRequest) {
       image_url?: string;
     };
 
-    console.log(`📥 Processing webhook event: ${eventType}`);
 
     if (eventType === "user.created" || eventType === "user.updated") {
       const email = userData.email_addresses?.[0]?.email_address;
@@ -99,17 +87,14 @@ export async function POST(req: NextRequest) {
         userData.image_url ?? ""
       );
 
-      console.log(`✅ User ${eventType === "user.created" ? "created" : "updated"} successfully`);
       return new NextResponse("Success", { status: 200 });
     }
 
     if (eventType === "user.deleted") {
       await Database.userService.deleteUser(userData.id);
-      console.log("✅ User deleted successfully");
       return new NextResponse("Success", { status: 200 });
     }
 
-    console.log("ℹ️ Unhandled webhook event type:", eventType);
     return new NextResponse("Unhandled webhook event type", { status: 400 });
 
   } catch (error) {

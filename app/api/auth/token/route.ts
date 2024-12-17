@@ -18,10 +18,6 @@ export async function POST(request: NextRequest) {
     let body: TokenUpdatePayload;
     try {
       body = await request.json();
-      console.log("[POST] /api/auth/token - Request received:", {
-        userId: body.userId,
-        headers: Object.fromEntries(request.headers)
-      });
     } catch (error) {
       console.error("[POST] /api/auth/token - Invalid JSON:", error);
       return NextResponse.json(
@@ -56,12 +52,10 @@ export async function POST(request: NextRequest) {
 
     // Then update the token (this ensures token fields are set correctly)
     await Database.userService.updateUserToken(body.userId, token);
-    console.log("[POST] /api/auth/token - Token updated successfully");
 
     try {
       // Track device information
       await checkAndUpdateDevice(request);
-      console.log("[POST] /api/auth/token - Device tracking completed");
     } catch (deviceError) {
       // Log device tracking error but don't fail the request
       console.error("[POST] /api/auth/token - Device tracking failed:", deviceError);

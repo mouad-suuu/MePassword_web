@@ -5,7 +5,6 @@ import { EncryptedPassword } from "../../../types";
 import { validateAuthToken } from "../../../middleware/auth";
 
 export async function GET(request: NextRequest) {
-  console.log('[GET] /api/passwords - Start');
 
   try {
     // Get userId from query parameters
@@ -21,10 +20,8 @@ export async function GET(request: NextRequest) {
 
     // Validate authentication
     const authResult = await validateAuthToken(request);
-    console.log('[GET] Auth validation result:', authResult);
 
     if ("error" in authResult) {
-      console.log('[GET] Authentication failed');
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
@@ -33,7 +30,6 @@ export async function GET(request: NextRequest) {
 
     // Read passwords
     const passwords = await Database.passwordService.readPasswords(userId);
-    console.log('[GET] Successfully retrieved passwords, count:', passwords.length);
 
     return NextResponse.json({ passwords });
   } catch (error) {
@@ -49,54 +45,39 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
-  console.log('[POST] /api/passwords - Start');
-  console.log('[POST] Request headers:', Object.fromEntries(request.headers.entries()));
   
   try {
     // Check for userId in both URL params and headers
     const url = new URL(request.url);
-    console.log('[POST] Original URL:', url.toString());
     
     let userId = url.searchParams.get('userId');
     if (!userId) {
       userId = request.headers.get('x-user-id');
-      console.log('[POST] UserId not found in URL params, checking headers. Found:', userId);
     }
     
     if (!userId) {
-      console.log('[POST] Error: Missing userId in both URL params and headers');
       return NextResponse.json(
         { error: "User ID is required" },
         { status: 400 }
       );
     }
 
-    console.log('[POST] Using userId:', userId);
-
-    // Validate authentication with userId
-    console.log('[POST] Starting auth validation for userId:', userId);
     const authResult = await validateAuthToken(request, userId);
-    console.log('[POST] Auth validation result:', authResult);
 
     if ("error" in authResult) {
-      console.log('[POST] Authentication failed:', authResult);
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
       );
     }
 
-    console.log('[POST] Authentication successful');
 
     const rawBody = await request.text();
-    console.log('[POST] Raw request body:', rawBody);
     
     let body: EncryptedPassword;
     try {
       body = JSON.parse(rawBody);
-      console.log('[POST] Parsed request body:', { ...body, password: '[REDACTED]' });
-    } catch (parseError) {
-      console.log('[POST] Error parsing request body:', parseError);
+    } catch  {
       return NextResponse.json(
         { error: "Invalid request body format" },
         { status: 400 }
@@ -104,7 +85,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (!body.id || !body) {
-      console.log('[POST] Missing required fields in body:', { receivedFields: Object.keys(body) });
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -119,9 +99,7 @@ export async function POST(request: NextRequest) {
       version: 1,
     };
 
-    console.log('[POST] Attempting to write password entry');
     await Database.passwordService.writePassword(userId, passwordEntry);
-    console.log('[POST] Successfully added new password');
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -134,7 +112,6 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
-  console.log('[PUT] /api/passwords - Start');
   
   try {
     const { searchParams } = new URL(request.url);
@@ -147,14 +124,11 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log('[PUT] User ID:', userId);
 
     // Validate authentication
     const authResult = await validateAuthToken(request);
-    console.log('[PUT] Auth validation result:', authResult);
 
     if ("error" in authResult) {
-      console.log('[PUT] Authentication failed');
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
@@ -164,7 +138,6 @@ export async function PUT(request: NextRequest) {
     const body: EncryptedPassword = await request.json();
 
     if (!body.id) {
-      console.log('[PUT] Missing password ID');
       return NextResponse.json(
         { error: "Missing password ID" },
         { status: 400 }
@@ -175,7 +148,6 @@ export async function PUT(request: NextRequest) {
     const passwordIndex = passwords.findIndex((p) => p.id === body.id);
 
     if (passwordIndex === -1) {
-      console.log('[PUT] Password not found');
       return NextResponse.json(
         { error: "Password not found" },
         { status: 404 }
@@ -193,7 +165,6 @@ export async function PUT(request: NextRequest) {
 
     passwords[passwordIndex] = updatedPassword;
     await Database.passwordService.writePassword(userId, passwords[passwordIndex]);
-    console.log('[PUT] Successfully updated password');
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -206,25 +177,19 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
-  console.log('[DELETE] /api/passwords - Start');
-  console.log('[DELETE] Request headers:', Object.fromEntries(request.headers.entries()));
   
   try {
     // Check for userId in both URL params and headers
     const url = new URL(request.url);
-    console.log('[DELETE] Original URL:', url.toString());
     
     let userId = url.searchParams.get('userId');
     if (!userId) {
       userId = request.headers.get('x-user-id');
-      console.log('[DELETE] UserId not found in URL params, checking headers. Found:', userId);
     }
 
     const passwordId = url.searchParams.get('id');
-    console.log('[DELETE] Password ID from params:', passwordId);
     
     if (!userId || !passwordId) {
-      console.log('[DELETE] Error: Missing required parameters', { userId, passwordId });
       return NextResponse.json(
         { error: "Both User ID and Password ID are required" },
         { status: 400 }
@@ -232,12 +197,9 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Validate authentication with userId
-    console.log('[DELETE] Starting auth validation for userId:', userId);
     const authResult = await validateAuthToken(request, userId);
-    console.log('[DELETE] Auth validation result:', authResult);
 
     if ("error" in authResult) {
-      console.log('[DELETE] Authentication failed:', authResult);
       return NextResponse.json(
         { error: authResult.error },
         { status: authResult.status }
@@ -246,12 +208,10 @@ export async function DELETE(request: NextRequest) {
 
     // Get all passwords for the user
     const passwords = await Database.passwordService.readPasswords(userId);
-    console.log('[DELETE] Retrieved passwords count:', passwords.length);
 
     // Find the specific password
     const passwordToDelete = passwords.find(p => p.id === passwordId);
     if (!passwordToDelete) {
-      console.log('[DELETE] Password not found:', passwordId);
       return NextResponse.json(
         { error: "Password not found" },
         { status: 404 }
@@ -260,7 +220,6 @@ export async function DELETE(request: NextRequest) {
 
     // Delete the password
     await Database.passwordService.deletePassword(userId, passwordId);
-    console.log('[DELETE] Successfully deleted password:', passwordId);
 
     return NextResponse.json({ 
       success: true,

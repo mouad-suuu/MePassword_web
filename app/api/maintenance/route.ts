@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { sql } from "@vercel/postgres";
 
 async function initializeTables() {
@@ -85,11 +85,9 @@ async function initializeTables() {
   }
 }
 
-export async function POST(request: NextRequest) {
+export async function POST() {
   try {
-    console.log("Starting database initialization");
     await initializeTables();
-    console.log("Database initialization completed successfully");
     
     return NextResponse.json({ 
       success: true, 

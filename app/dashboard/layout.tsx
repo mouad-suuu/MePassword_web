@@ -1,7 +1,6 @@
 'use client';
 
 import { UserButton } from '@clerk/nextjs';
-import { Moon, Sun } from 'lucide-react';
 import Link from 'next/link';
 
 export default function DashboardLayout({

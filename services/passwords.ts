@@ -126,7 +126,6 @@ public async sharePasswords(
   ): Promise<void> {
     try {
       for (const password of passwords) {
-        console.log('Sharing password:', { ...password, password: '[REDACTED]' });
         const encryptedPassword = password.encrypted_password ?? password.password;
         
         if (!encryptedPassword) {

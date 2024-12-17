@@ -114,17 +114,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("Settings POST: Starting to process request");
     
     // Parse and validate request body
     let body: APISettingsPayload;
     try {
       body = await request.json();
-      console.log("Settings POST: Request body parsed", { 
-        hasUserId: !!body.userId,
-        hasPublicKey: !!body.publicKey,
-        hasPassword: !!body.password
-      });
     } catch (error) {
       console.error("Settings POST: JSON parse error", error);
       return NextResponse.json(
@@ -157,19 +151,15 @@ export async function POST(request: NextRequest) {
         "",
         ""
       );
-      console.log("Settings POST: Created temporary user");
     } catch (error) {
       // If error is not about duplicate user, rethrow it
       if (!(error instanceof Error) || !error.message.includes('duplicate key value')) {
         throw error;
       }
-      console.log("Settings POST: User already exists");
     }
 
-    console.log("Settings POST: Writing settings to database");
     // Write settings
     await Database.settingsService.writeSettings(body);
-    console.log("Settings POST: Settings written successfully");
     
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -197,23 +187,13 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    console.log("Settings PUT: Starting to process request");
     
     // Get userId from request body
     let body: Partial<APISettingsPayload>;
     try {
       const rawBody = await request.text();
-      console.log("Settings PUT: Raw request body:", rawBody);
       
       body = JSON.parse(rawBody);
-      console.log("Settings PUT: Parsed body:", {
-        hasUserId: !!body.userId,
-        userId: body.userId,
-        hasPublicKey: !!body.publicKey,
-        hasSessionSettings: !!body.sessionSettings,
-        hasDeviceId: !!body.deviceId,
-        hasTimestamp: !!body.timestamp
-      });
     } catch (error) {
       console.error("Settings PUT: JSON parse error", error);
       return NextResponse.json(
@@ -231,7 +211,6 @@ export async function PUT(request: NextRequest) {
     }
 
     // Read current settings
-    console.log("Settings PUT: Reading current settings for userId:", body.userId);
     const currentSettings = await Database.settingsService.readSettings(body.userId);
 
     // Merge settings if they exist
@@ -244,9 +223,7 @@ export async function PUT(request: NextRequest) {
       sessionSettings: body.sessionSettings || currentSettings?.sessionSettings
     };
 
-    console.log("Settings PUT: Writing merged settings to database");
     await Database.settingsService.writeSettings(updatedSettings);
-    console.log("Settings PUT: Settings updated successfully");
 
     return NextResponse.json({
       success: true,

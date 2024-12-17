@@ -1,7 +1,7 @@
 'use client';
 
 import FeatureCard from '../ui/FeatureCard';
-import { Shield, KeyRound, Fingerprint, RefreshCcw, Cpu, Lock, Layers } from 'lucide-react';
+import { Shield, KeyRound, RefreshCcw, Cpu, Lock, Layers } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export default function EncryptionCard() {

@@ -12,13 +12,6 @@ public async  upsertDevice(
     source: 'web' | 'extension' | 'unknown' = 'unknown'
   ): Promise<Device> {
     try {
-      console.log("[upsertDevice] Starting device upsert:", {
-        userId,
-        browser,
-        os,
-        deviceName,
-        source
-      });
   
       const result = await sql`
         INSERT INTO devices (
@@ -48,7 +41,6 @@ public async  upsertDevice(
           device_name = COALESCE(${deviceName}, devices.device_name)
         RETURNING *;
       `;
-      console.log("[upsertDevice] Updated existing device:", result.rows[0]);
       return result.rows[0] as Device;
     } catch (error) {
       console.error("[upsertDevice] Error:", error);
@@ -85,13 +77,11 @@ public async  upsertDevice(
   
   public async  deactivateAllDevices(userId: string): Promise<void> {
     try {
-      console.log("[deactivateAllDevices] Starting for userId:", userId);
       await sql`
         UPDATE devices 
         SET session_active = FALSE 
         WHERE user_id = ${userId}
       `;
-      console.log("[deactivateAllDevices] Successfully deactivated all devices");
     } catch (error) {
       console.error("[deactivateAllDevices] Error:", error);
       throw error;
@@ -110,7 +100,6 @@ public async  upsertDevice(
         AND session_active = TRUE;
       `;
   
-      console.log(`Deactivated devices inactive for more than ${daysInactive} days`);
     } catch (error) {
       console.error("Error cleaning up inactive devices:", error);
       throw error;

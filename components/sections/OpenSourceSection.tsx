@@ -27,7 +27,7 @@ export function OpenSourceSection() {
             <p className="mt-4 text-lg leading-8 text-gray-600 dark:text-gray-300">
               MePassword is fully committed to transparency and security. Our web application is completely open source, 
               allowing you to inspect and verify the code yourself. For the browser extension, we maintain a controlled 
-              contribution process - simply submit a request for review, and I'll personally ensure all changes align 
+              contribution process - simply submit a request for review, and I&apos;ll personally ensure all changes align 
               with our security standards.
             </p>
 
@@ -107,22 +107,22 @@ export function OpenSourceSection() {
               </div>
               <p className="text-gray-600 dark:text-gray-300 mb-6">
                 Want to contribute, check the source code,request a features , or discuss improvements? 
-                Let's connect and make MePassword even better together.
+                Let&apos;s connect and make MePassword even better together.
               </p>
               <div className="flex flex-col gap-4">
-                <a href="mailto:your.email@example.com" 
+                <a href="mailto:mosd.menniui@gmail.com" 
                    className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
                   <Mail className="h-5 w-5" />
                   <span>Email</span>
                 </a>
-                <a href="https://github.com/yourusername" 
+                <a href="https://github.com/mouad-suuu" 
                    target="_blank" 
                    rel="noopener noreferrer" 
                    className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">
                   <Github className="h-5 w-5" />
                   <span>GitHub</span>
                 </a>
-                <a href="https://linkedin.com/in/yourusername" 
+                <a href="https://linkedin.com/in/mouad-mennioui-040477264" 
                    target="_blank" 
                    rel="noopener noreferrer" 
                    className="flex items-center gap-2 text-gray-600 dark:text-gray-300 hover:text-primary transition-colors p-2 rounded-md hover:bg-gray-50 dark:hover:bg-gray-700">

@@ -52,11 +52,9 @@ export class Devices {
       
       if (!existingDevice) {
         // Register new device
-        console.log('[IsNewDevices] Registering new device');
         return await Database.deviceService.upsertDevice(userId, browser, os, undefined, source);
       }
 
-      console.log('[IsNewDevices] Device already exists');
       return existingDevice;
     } catch (error) {
       console.error('[IsNewDevices] Error:', error);

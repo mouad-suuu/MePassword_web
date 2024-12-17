@@ -1,8 +1,7 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "./ui/card"
+import { Card, CardContent, CardDescription, CardFooter, CardHeader } from "./ui/card"
 import { Button } from "./ui/button"
-import { useRouter } from "next/navigation"
 import { Device } from "../types"
 
 interface DeviceCardProps {
@@ -11,7 +10,6 @@ interface DeviceCardProps {
 }
 
 export default function DeviceCard({ device, onDelete }: DeviceCardProps) {
-  const router = useRouter()
 
   const handleDelete = async () => {
     try {

@@ -7,6 +7,7 @@ import { Laptop, Smartphone, Tablet, RefreshCw } from 'lucide-react';
 import { TopNav } from '../../components/navigation/TopNavDashboard';
 import { Button } from '../../components/ui/button';
 import { useRouter } from 'next/navigation'; 
+import Image from 'next/image';
 
 
 
@@ -26,7 +27,6 @@ export default function DashboardPage() {
   const [devices, setDevices] = useState<Device[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [sessionIds, setSessionIds] = useState<string[]>([]);
 
   const { signOut } = useClerk();
 
@@ -143,7 +143,7 @@ const handleSignOutAllDevices = async () => {
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden">
               {/* User Profile Section */}
               <div className="flex flex-col items-center pt-12 pb-8 px-8 border-b border-gray-200 dark:border-gray-700">
-                <img
+                <Image
                   src={user.imageUrl}
                   alt={user.fullName || ''}
                   className="w-24 h-24 rounded-full border-4 border-primary shadow-lg mb-4"
@@ -220,7 +220,7 @@ const handleSignOutAllDevices = async () => {
                     <Button
                       variant="destructive"
                       size="sm"
-                      // onClick={handleSignOutAllDevices}
+                      onClick={handleSignOutAllDevices}
                       className="w-full mt-4"
                     >
                       Sign Out All Devices

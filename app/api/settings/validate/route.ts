@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import  Database  from "../../../../services/database";
-import { validateAuthToken } from "../../../../middleware/auth";
 import { validateSecurityHeaders } from "../../../middleware/security";
 
 interface ValidatePasswordPayload {
@@ -22,7 +21,6 @@ export async function POST(request: NextRequest) {
     const headers = request.headers;
     const userId = headers.get('X-User-ID');
     
-    console.log("Received validation request for user:", userId);
 
     if (!userId) {
       return NextResponse.json(
@@ -35,7 +33,6 @@ export async function POST(request: NextRequest) {
     let body: ValidatePasswordPayload;
     try {
       body = await request.json();
-      console.log("Received password payload:", body);
     } catch {
       return NextResponse.json(
         { error: "Invalid JSON payload" },

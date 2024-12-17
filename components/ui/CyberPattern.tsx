@@ -28,8 +28,10 @@ export const CyberPattern = () => {
         const offsetX = Math.random() * 150 * (corner.x === 0 ? 1 : -1);
         const offsetY = Math.random() * 150 * (corner.y === 0 ? 1 : -1);
         let path = `M ${corner.x + offsetX} ${corner.y + offsetY}`;
-        let currentX = corner.x + offsetX;
-        let currentY = corner.y + offsetY;
+        const position = {
+          x: corner.x + offsetX,
+          y: corner.y + offsetY
+        };
         const steps = 8 + Math.floor(Math.random() * 4); // More steps
 
         for (let j = 0; j < steps; j++) {
@@ -43,7 +45,7 @@ export const CyberPattern = () => {
             const goLeft = j < steps/2 ? 
               (corner.x === 800 ? Math.random() < 0.7 : Math.random() < 0.3) : 
               (corner.x === 800 ? Math.random() < 0.3 : Math.random() < 0.7);
-            currentX += distance * (goLeft ? -1 : 1);
+            position.x += distance * (goLeft ? -1 : 1);
             path += ` h ${distance * (goLeft ? -1 : 1)}`;
           } else {
             // Vertical movement
@@ -51,7 +53,7 @@ export const CyberPattern = () => {
             const goUp = j < steps/2 ? 
               (corner.y === 600 ? Math.random() < 0.7 : Math.random() < 0.3) : 
               (corner.y === 600 ? Math.random() < 0.3 : Math.random() < 0.7);
-            currentY += distance * (goUp ? -1 : 1);
+            position.y += distance * (goUp ? -1 : 1);
             path += ` v ${distance * (goUp ? -1 : 1)}`;
           }
         }

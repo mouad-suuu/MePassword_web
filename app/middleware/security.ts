@@ -37,9 +37,6 @@ export async function validateSecurityHeaders(request: NextRequest) {
     return tokenValidation;
   }
 
-  // Validate signature
-  const signature = request.headers.get('X-Signature');
   // TODO: Add signature validation logic here
-
   return { valid: true };
 }

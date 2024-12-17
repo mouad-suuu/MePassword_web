@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
 import Database from "../../../services/database";
-import { Device } from "../../../types";
 import { Devices } from "../../../utils/device";
 import { validateAuthToken } from "../../../middleware/auth";
 

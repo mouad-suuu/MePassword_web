@@ -1,7 +1,5 @@
 'use client';
 
-import Image from 'next/image';
-
 export function AboutSection() {
   return (
     <section id="about" className="py-20 px-4 sm:px-6 lg:px-8 bg-gray-50/50 dark:bg-gray-900/50">
@@ -23,8 +21,8 @@ export function AboutSection() {
                 1️⃣ Initial Setup
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                After signing in, you'll need to generate your encryption keys. These keys are the foundation 
-                of your password security. You'll create a master password that encrypts these keys - 
+                After signing in, you&apos;ll need to generate your encryption keys. These keys are the foundation 
+                of your password security. You&apos;ll create a master password that encrypts these keys - 
                 <span className="text-amber-600 dark:text-amber-400 font-medium"> make sure to remember this password and save your keys in a secure location</span>.
               </p>
             </div>
@@ -37,7 +35,7 @@ export function AboutSection() {
               <p className="text-gray-600 dark:text-gray-400">
                 Your encryption keys are stored in an encrypted file, protected by your master password. 
                 This two-layer approach means that even if someone gets access to your encrypted file, 
-                they can't access your passwords without your master password.
+                they can&apos;t access your passwords without your master password.
               </p>
             </div>
 
@@ -47,7 +45,7 @@ export function AboutSection() {
                 3️⃣ Password Management
               </h3>
               <p className="text-gray-600 dark:text-gray-400">
-                When you save a password, it's encrypted using your keys before being stored locally. 
+                When you save a password, it&apos;s encrypted using your keys before being stored locally. 
                 When you need to access a password, the extension first decrypts your keys using your 
                 master password, then uses those keys to decrypt your stored passwords.
               </p>
@@ -65,7 +63,7 @@ export function AboutSection() {
                   🔐 True Zero-Knowledge
                 </h4>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Your master password never leaves your device. Even we can't access your passwords 
+                  Your master password never leaves your device. Even we can&apos;t access your passwords 
                   or encryption keys.
                 </p>
               </div>
@@ -93,7 +91,7 @@ export function AboutSection() {
               <div className="pt-4 border-t border-gray-100 dark:border-gray-700">
                 <p className="text-amber-600 dark:text-amber-400 font-medium">
                   Important: Your master password is crucial for accessing your passwords. If you lose it, 
-                  there's no way to recover your stored passwords.
+                  there&apos;s no way to recover your stored passwords.
                 </p>
               </div>
             </div>

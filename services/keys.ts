@@ -124,7 +124,6 @@ export class KeysService {
   ): Promise<void> {
     try {
       for (const key of keys) {
-        console.log('Sharing key:', { ...key, password: '[REDACTED]' });
         const encryptedPassword = key.encrypted_password ?? key.password;
         
         if (!encryptedPassword) {
