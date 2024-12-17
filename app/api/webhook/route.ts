@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Webhook, WebhookRequiredHeaders } from "svix";
 import { WebhookEvent } from "@clerk/nextjs/server";
-import { createUser, deleteUser, ensureDatabaseInitialized } from "../../../utils/database";
+import Database from "../../../services/database";
 import { headers } from "next/headers";
 
 console.log("🌐 Webhook Route Initialized");
@@ -15,7 +15,7 @@ export async function POST(req: NextRequest) {
   try {
     // Ensure database is initialized with latest schema
     console.log("🔒 Ensuring database initialization");
-    await ensureDatabaseInitialized();
+    await Database.userService.ensureDatabaseInitialized();
 
     console.log("📋 Extracting webhook headers");
     const headerPayload = await headers(); // Added await here
@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
         });
       }
 
-      await createUser(
+      await Database.userService.createUser(
         userData.id,
         email,
         true,
@@ -104,7 +104,7 @@ export async function POST(req: NextRequest) {
     }
 
     if (eventType === "user.deleted") {
-      await deleteUser(userData.id);
+      await Database.userService.deleteUser(userData.id);
       console.log("✅ User deleted successfully");
       return new NextResponse("Success", { status: 200 });
     }

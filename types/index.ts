@@ -45,8 +45,11 @@ export interface EncryptedPassword extends PasswordMetadata {
   id: string;
   website: string;
   user: string;
+  encrypted_password: string;
   password: string;
   owner_email: string;
+  owner_id: string;
+  updated_at: string;
   MetaData?: PasswordMetadata;
 }
 

@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getUserToken } from "../../utils/database";
+import Database from "../../services/database";
 
 export async function validateAuthToken(request: NextRequest) {
   try {
@@ -34,7 +34,7 @@ export async function validateAuthToken(request: NextRequest) {
     });
 
     // Get stored token from database
-    const { token: storedToken, expired } = await getUserToken(userId);
+    const { token: storedToken, expired } = await Database.userService.getUserToken(userId);
     console.log("[validateAuthToken] Retrieved stored token:", {
       hasStoredToken: !!storedToken,
       storedTokenLength: storedToken?.length,

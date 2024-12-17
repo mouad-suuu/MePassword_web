@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { checkAndUpdateDevice } from "../../../../middleware/devices";
-import { updateUserToken, createUser } from "../../../../utils/database";
+import  Database  from "../../../../services/database";
 
 interface TokenUpdatePayload {
   userId: string;
@@ -43,7 +43,7 @@ export async function POST(request: NextRequest) {
     const token = body.token.replace(/^Bearer\s+/i, '').trim();
 
     // First create/update the user
-    await createUser(
+    await Database.userService.createUser(
       body.userId,
       body.email,
       true, // verification
@@ -55,7 +55,7 @@ export async function POST(request: NextRequest) {
     );
 
     // Then update the token (this ensures token fields are set correctly)
-    await updateUserToken(body.userId, token);
+    await Database.userService.updateUserToken(body.userId, token);
     console.log("[POST] /api/auth/token - Token updated successfully");
 
     try {

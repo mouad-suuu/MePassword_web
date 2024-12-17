@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { deactivateAllDevices, getUserDevices, deactivateDevice, upsertDevice } from "../../../utils/database";
+import Database from "../../../services/database";
 import { Device } from "../../../types";
 import { Devices } from "../../../utils/device";
 import { validateAuthToken } from "../../../middleware/auth";
@@ -13,7 +13,7 @@ export async function GET(request: NextRequest) {
     }
 
     const { userId } = authResult;
-    const devices = await getUserDevices(userId);
+    const devices = await Database.deviceService.getUserDevices(userId);
     return NextResponse.json({ devices });
   } catch (error) {
     console.error('[GET /api/devices] Error:', error);
@@ -46,10 +46,10 @@ export async function POST(request: NextRequest) {
       if (!deviceId) {
         return NextResponse.json({ error: 'Device ID is required' }, { status: 400 });
       }
-      await deactivateDevice(deviceId);
+      await Database.deviceService.deactivateDevice(deviceId);
       return NextResponse.json({ success: true });
     } else if (action === 'deactivateAll') {
-      await deactivateAllDevices(userId);
+      await Database.deviceService.deactivateAllDevices(userId);
       return NextResponse.json({ success: true });
     }
 

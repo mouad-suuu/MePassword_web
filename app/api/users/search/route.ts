@@ -1,7 +1,7 @@
 "use server"
 import { NextRequest, NextResponse } from "next/server";
 
-import { searchUsersByEmail } from "../../../../utils/database";
+import Database from "../../../../services/database";
 
 export async function GET(req: NextRequest) {
   try {
@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const users = await searchUsersByEmail(email);
+    const users = await Database.userService.searchUsersByEmail(email);
     
     // Don't return the current user in search results
     const filteredUsers = users.filter(user => user.id !== userId);

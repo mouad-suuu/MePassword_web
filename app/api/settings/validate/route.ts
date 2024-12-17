@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSettings } from "../../../../utils/database";
+import  Database  from "../../../../services/database";
 import { validateAuthToken } from "../../../../middleware/auth";
 import { validateSecurityHeaders } from "../../../middleware/security";
 
@@ -50,7 +50,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const settings = await readSettings(userId);
+    const settings = await Database.settingsService.readSettings(userId);
     // Direct comparison of encrypted passwords
     const isValid = settings?.password === body.NewEncryptedPassword;
 

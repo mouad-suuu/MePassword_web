@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { readSettings, writeSettings, createUser } from "../../../utils/database";
+import Database from "../../../services/database";
 import { APISettingsPayload } from "../../../types";
 import { validateSecurityHeaders } from "../../middleware/security";
 
@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Read settings
-    let settings = await readSettings(userId);
+    let settings = await Database.settingsService.readSettings(userId);
 
     // If no settings exist, create default settings
     if (!settings || Object.keys(settings).length === 0) {
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
         }
       };
 
-      await writeSettings(defaultSettings);
+      await Database.settingsService.writeSettings(defaultSettings);
       settings = defaultSettings;
     }
 
@@ -87,7 +87,7 @@ export async function HEAD(request: NextRequest) {
     }
 
     // Read settings
-    const settings = await readSettings(userId);
+    const settings = await Database.settingsService.readSettings(userId);
     
     // Return 200 if settings exist, 404 if they don't
     return new NextResponse(null, { 
@@ -148,7 +148,7 @@ export async function POST(request: NextRequest) {
     try {
       // Create user if they don't exist yet (webhook might be delayed)
       const tempEmail = `temp_${body.userId}@mepassword.temp`;
-      await createUser(
+      await Database.userService.createUser(
         body.userId,
         tempEmail,
         true,
@@ -168,7 +168,7 @@ export async function POST(request: NextRequest) {
 
     console.log("Settings POST: Writing settings to database");
     // Write settings
-    await writeSettings(body);
+    await Database.settingsService.writeSettings(body);
     console.log("Settings POST: Settings written successfully");
     
     return NextResponse.json({ success: true });
@@ -232,7 +232,7 @@ export async function PUT(request: NextRequest) {
 
     // Read current settings
     console.log("Settings PUT: Reading current settings for userId:", body.userId);
-    const currentSettings = await readSettings(body.userId);
+    const currentSettings = await Database.settingsService.readSettings(body.userId);
 
     // Merge settings if they exist
     const updatedSettings: APISettingsPayload = {
@@ -245,7 +245,7 @@ export async function PUT(request: NextRequest) {
     };
 
     console.log("Settings PUT: Writing merged settings to database");
-    await writeSettings(updatedSettings);
+    await Database.settingsService.writeSettings(updatedSettings);
     console.log("Settings PUT: Settings updated successfully");
 
     return NextResponse.json({

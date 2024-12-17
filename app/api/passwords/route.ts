@@ -1,6 +1,6 @@
 "use server"
 import { NextRequest, NextResponse } from "next/server";
-import { readPasswords, writePassword, deletePassword } from "../../../utils/database";
+import Database from "../../../services/database";
 import { EncryptedPassword } from "../../../types";
 import { validateAuthToken } from "../../../middleware/auth";
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Read passwords
-    const passwords = await readPasswords(userId);
+    const passwords = await Database.passwordService.readPasswords(userId);
     console.log('[GET] Successfully retrieved passwords, count:', passwords.length);
 
     return NextResponse.json({ passwords });
@@ -120,7 +120,7 @@ export async function POST(request: NextRequest) {
     };
 
     console.log('[POST] Attempting to write password entry');
-    await writePassword(userId, passwordEntry);
+    await Database.passwordService.writePassword(userId, passwordEntry);
     console.log('[POST] Successfully added new password');
 
     return NextResponse.json({ success: true });
@@ -171,7 +171,7 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    const passwords = await readPasswords(userId);
+    const passwords = await Database.passwordService.readPasswords(userId);
     const passwordIndex = passwords.findIndex((p) => p.id === body.id);
 
     if (passwordIndex === -1) {
@@ -192,7 +192,7 @@ export async function PUT(request: NextRequest) {
     };
 
     passwords[passwordIndex] = updatedPassword;
-    await writePassword(userId, passwords[passwordIndex]);
+    await Database.passwordService.writePassword(userId, passwords[passwordIndex]);
     console.log('[PUT] Successfully updated password');
 
     return NextResponse.json({ success: true });
@@ -245,7 +245,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Get all passwords for the user
-    const passwords = await readPasswords(userId);
+    const passwords = await Database.passwordService.readPasswords(userId);
     console.log('[DELETE] Retrieved passwords count:', passwords.length);
 
     // Find the specific password
@@ -259,7 +259,7 @@ export async function DELETE(request: NextRequest) {
     }
 
     // Delete the password
-    await deletePassword(userId, passwordId);
+    await Database.passwordService.deletePassword(userId, passwordId);
     console.log('[DELETE] Successfully deleted password:', passwordId);
 
     return NextResponse.json({ 

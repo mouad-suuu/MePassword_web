@@ -1,6 +1,6 @@
 import { sql } from "@vercel/postgres";
 import { Device } from "../types";
-import { upsertDevice, getUserDevices, deactivateDevice } from "./database";
+import Database from "../services/database";
 
 export class Devices {
   /**
@@ -14,7 +14,7 @@ export class Devices {
   ): Promise<Device | null> {
     try {
       // Get all user devices
-      const devices = await getUserDevices(userId);
+      const devices = await Database.deviceService.getUserDevices(userId);
       
       // Find matching device
       const existingDevice = devices.find(
@@ -26,7 +26,7 @@ export class Devices {
 
       if (existingDevice) {
         // Update last active timestamp
-        await upsertDevice(userId, browser, os, existingDevice.deviceName, source);
+        await Database.deviceService.upsertDevice(userId, browser, os, existingDevice.deviceName, source);
         return existingDevice;
       }
 
@@ -53,7 +53,7 @@ export class Devices {
       if (!existingDevice) {
         // Register new device
         console.log('[IsNewDevices] Registering new device');
-        return await upsertDevice(userId, browser, os, undefined, source);
+        return await Database.deviceService.upsertDevice(userId, browser, os, undefined, source);
       }
 
       console.log('[IsNewDevices] Device already exists');

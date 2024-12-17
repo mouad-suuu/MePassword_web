@@ -1,10 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import { 
-  getUserPublicKeyByEmail, 
-  sharePasswords, 
-  shareKeys 
-} from "../../../utils/database";
+import Database from "../../../services/database";
 import { EncryptedPassword } from "../../../types";
 
 export async function POST(req: NextRequest) {
@@ -44,7 +40,7 @@ export async function POST(req: NextRequest) {
     }
 
     // Get recipient's user ID and public key
-    const recipient = await getUserPublicKeyByEmail(recipientEmail);
+    const recipient = await Database.settingsService.getUserPublicKeyByEmail(recipientEmail);
 
     if (!recipient.publicKey) {
       return NextResponse.json(
@@ -55,9 +51,9 @@ export async function POST(req: NextRequest) {
 
     // Share the items
     if (type === 'passwords') {
-      await sharePasswords(recipient.userId, items, userId);
+      await Database.passwordService.sharePasswords(recipient.userId, items, userId);
     } else {
-      await shareKeys(recipient.userId, items, userId);
+      await Database.keyService.shareKeys(recipient.userId, items, userId);
     }
 
     return NextResponse.json({

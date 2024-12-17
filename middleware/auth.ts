@@ -1,5 +1,5 @@
 import { NextRequest } from "next/server";
-import { getUserToken } from "../utils/database";
+import Database from "../services/database";
 import { validateEnv } from "../utils/env";
 import { Devices } from "../utils/device";
 import { useAuth } from '@clerk/nextjs';
@@ -70,7 +70,7 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
       }
     } else {
       // For extension requests (custom token validation)
-      const storedToken = await getUserToken(userId);
+      const storedToken = await Database.userService.getUserToken(userId);
       console.log("[validateAuthToken] Retrieved stored token:", {
         hasStoredToken: !!storedToken?.token,
         isExpired: storedToken?.expired

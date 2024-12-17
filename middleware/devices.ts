@@ -1,6 +1,6 @@
 import { NextRequest } from "next/server";
 import { UAParser } from "ua-parser-js";
-import { upsertDevice } from "../utils/database";
+import Database from "../services/database";
 
 function determineSource(request: NextRequest): 'web' | 'extension' | 'unknown' {
   const userAgent = request.headers.get("user-agent") || "";
@@ -48,7 +48,7 @@ export async function checkAndUpdateDevice(request: NextRequest): Promise<void> 
     
     console.log("[checkAndUpdateDevice] Parsed device info:", { browser, os, source });
 
-    const device = await upsertDevice(userId, browser, os, undefined, source);
+    const device = await Database.deviceService.upsertDevice(userId, browser, os, undefined, source);
     console.log("[checkAndUpdateDevice] Device upserted successfully:", device);
   } catch (error) {
     console.error("[checkAndUpdateDevice] Error:", error);
