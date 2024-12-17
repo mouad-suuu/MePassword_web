@@ -1,8 +1,10 @@
+import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
+import { Inter } from "next/font/google";
 import localFont from "next/font/local";
 import "./globals.css";
-import { ClerkProvider } from "@clerk/nextjs";
 
+const inter = Inter({ subsets: ["latin"] });
 const geistSans = localFont({
   src: "./fonts/GeistVF.woff",
   variable: "--font-geist-sans",
@@ -15,40 +17,70 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "MePassword",
-  description: "Secure Password Management",
+  title: "MePassword - Secure Password Manager",
+  description: "A secure, user-friendly password manager that helps you store and manage your passwords safely across all your devices.",
+  keywords: ["password manager", "security", "password storage", "encryption", "password protection"],
+  authors: [{ name: "MePassword Team" }],
+  creator: "MePassword",
+  publisher: "MePassword",
+  applicationName: "MePassword",
+  generator: "Next.js",
   icons: {
-    icon: [
-      { url: '/MePassword.png', sizes: '32x32', type: 'image/png' },
-      { url: '/MePassword.png', sizes: '32x32', type: 'image/png', media: '(prefers-color-scheme: dark)' }
-    ],
-    apple: [
-      { url: '/MePassword.png', sizes: '180x180', type: 'image/png' }
-    ],
-    shortcut: ['/MePassword.png'],
-    other: [
+    icon: "/favicon.ico",
+  },
+  openGraph: {
+    type: "website",
+    locale: "en_US",
+    url: "https://mepassword.vercel.app",
+    title: "MePassword - Secure Password Manager",
+    description: "A secure, user-friendly password manager that helps you store and manage your passwords safely across all your devices.",
+    siteName: "MePassword",
+    images: [
       {
-        rel: 'mask-icon',
-        url: '/MePassword.png',
-        color: '#000000'
-      }
-    ]
-  }
+        url: "/og-image.png",
+        width: 1200,
+        height: 630,
+        alt: "MePassword Preview",
+      },
+    ],
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "MePassword - Secure Password Manager",
+    description: "A secure, user-friendly password manager that helps you store and manage your passwords safely across all your devices.",
+    images: ["/og-image.png"],
+  },
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+  },
+  themeColor: "#000000",
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
+  },
 };
 
 export default function RootLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
-    <html lang="en">
-      <ClerkProvider>
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
-      >
-        {children}
-      </body></ClerkProvider>
-    </html>
+    <ClerkProvider>
+      <html lang="en">
+        <body className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}>
+          {children}
+        </body>
+      </html>
+    </ClerkProvider>
   );
 }
