@@ -1,6 +1,7 @@
 import { ClerkProvider } from "@clerk/nextjs";
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import { Navbar } from "../components/Navbar";
 import localFont from "next/font/local";
 import "./globals.css";
 
@@ -78,6 +79,7 @@ export default function RootLayout({
     <ClerkProvider>
       <html lang="en">
         <body className={`${geistSans.variable} ${geistMono.variable} ${inter.className} antialiased`}>
+          <Navbar />
           {children}
         </body>
       </html>
