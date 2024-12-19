@@ -39,7 +39,7 @@ export async function POST(request: NextRequest) {
       if (!browser || !os || !source) {
         return NextResponse.json({ error: 'Browser, OS, and source are required' }, { status: 400 });
       }
-      const device = await Devices.handleDeviceCheck(userId, browser, os, source as 'web' | 'extension' | 'unknown');
+      const device = await Devices.handleDeviceCheck(userId, browser, os, source as 'web' | 'extension');
       return NextResponse.json({ device });
     } else if (action === 'deactivate') {
       if (!deviceId) {

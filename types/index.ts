@@ -29,7 +29,7 @@ export type Device = {
   deviceName: string | null;
   lastActive: Date;
   sessionActive: boolean;
-  source: 'web' | 'extension' | 'unknown';
+  source: 'web' | 'extension';
 };
 
 export interface PasswordMetadata {

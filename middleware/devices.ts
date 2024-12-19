@@ -2,7 +2,7 @@ import { NextRequest } from "next/server";
 import { UAParser } from "ua-parser-js";
 import Database from "../services/database";
 
-function determineSource(request: NextRequest): 'web' | 'extension' | 'unknown' {
+function determineSource(request: NextRequest): 'web' | 'extension' {
   const userAgent = request.headers.get("user-agent") || "";
   const clientType = request.headers.get("x-client-type");
   const origin = request.headers.get("origin") || "";
@@ -13,7 +13,6 @@ function determineSource(request: NextRequest): 'web' | 'extension' | 'unknown' 
   } else if (clientType === 'web') {
     return 'web';
   }
-  return 'unknown';
 }
 
 export async function checkAndUpdateDevice(request: NextRequest): Promise<void> {

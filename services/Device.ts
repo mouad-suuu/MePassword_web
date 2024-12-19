@@ -9,7 +9,7 @@ public async  upsertDevice(
     browser: string,
     os: string,
     deviceName?: string,
-    source: 'web' | 'extension' | 'unknown' = 'unknown'
+    source: 'web' | 'extension' = 'web'
   ): Promise<Device> {
     try {
   

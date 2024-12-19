@@ -34,7 +34,7 @@ export const metadata: Metadata = {
   applicationName: "MePassword",
   generator: "Next.js",
   icons: {
-    icon: "/favicon.ico",
+    icon: "/MePassword.png",
   },
   openGraph: {
     type: "website",
@@ -45,7 +45,7 @@ export const metadata: Metadata = {
     siteName: "MePassword",
     images: [
       {
-        url: "/og-image.png",
+        url: "/MePassword.png",
         width: 1200,
         height: 630,
         alt: "MePassword Preview",
@@ -56,7 +56,7 @@ export const metadata: Metadata = {
     card: "summary_large_image",
     title: "MePassword - Secure Password Manager",
     description: "A secure, user-friendly password manager that helps you store and manage your passwords safely across all your devices.",
-    images: ["/og-image.png"],
+    images: ["/MePassword.png"],
   },
   robots: {
     index: true,

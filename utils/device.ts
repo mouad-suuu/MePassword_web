@@ -10,7 +10,7 @@ export class Devices {
     userId: string,
     browser: string,
     os: string,
-    source: 'web' | 'extension' | 'unknown'
+    source: 'web' | 'extension'
   ): Promise<Device | null> {
     try {
       // Get all user devices
@@ -44,7 +44,7 @@ export class Devices {
     userId: string,
     browser: string,
     os: string,
-    source: 'web' | 'extension' | 'unknown'
+    source: 'web' | 'extension'
   ): Promise<Device> {
     try {
       // Check if device exists
@@ -69,7 +69,7 @@ export class Devices {
     userId: string,
     browser: string,
     os: string,
-    source: 'web' | 'extension' | 'unknown'
+    source: 'web' | 'extension'
   ): Promise<Device> {
     try {
       // Always try to register/update device during token check

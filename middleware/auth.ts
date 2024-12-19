@@ -90,7 +90,7 @@ export async function validateAuthToken(request: NextRequest, providedUserId?: s
     try {
       const browser = request.headers.get('x-device-browser') || 'Unknown Browser';
       const os = request.headers.get('x-device-os') || 'Unknown OS';
-      const source = (request.headers.get('x-request-source') || request.headers.get('x-client-type') || 'unknown') as 'web' | 'extension' | 'unknown';
+      const source = (request.headers.get('X-Request-Source') || request.headers.get('x-client-type')) as 'web' | 'extension';
 
       
       await Devices.handleDeviceCheck(userId, browser, os, source);
