@@ -11,7 +11,6 @@ export function Logo() {
         height={32}
         className="rounded-sm"
       />
-      <span className="font-bold text-xl">MePassword</span>
     </Link>
   );
 }

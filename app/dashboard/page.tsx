@@ -9,8 +9,6 @@ import { Button } from '../../components/ui/button';
 import { useRouter } from 'next/navigation'; 
 import Image from 'next/image';
 
-
-
 interface Device {
   id: string;
   browser: string;
@@ -143,11 +141,13 @@ const handleSignOutAllDevices = async () => {
             <div className="bg-white/80 dark:bg-gray-800/80 backdrop-blur-sm rounded-xl shadow-lg overflow-hidden">
               {/* User Profile Section */}
               <div className="flex flex-col items-center pt-12 pb-8 px-8 border-b border-gray-200 dark:border-gray-700">
-                <Image
-                  src={user.imageUrl}
-                  alt={user.fullName || ''}
-                  className="w-24 h-24 rounded-full border-4 border-primary shadow-lg mb-4"
-                />
+             <Image
+               src={user.imageUrl}
+               alt={user.fullName || ''}
+               width={96}  // 24 * 4 = 96px to match w-24
+               height={96} // 24 * 4 = 96px to match h-24
+               className="w-24 h-24 rounded-full border-4 border-primary shadow-lg mb-4"
+             />
                 <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                   {user.firstName} {user.lastName}
                 </h1>

@@ -6,6 +6,7 @@ import { TbWorldShare } from 'react-icons/tb';
 import { HiUserGroup } from 'react-icons/hi';
 import { CyberPattern } from '../../components/ui/CyberPattern';
 import Image from 'next/image';
+import { Logo } from '../../components/Logo';
 
 export default function AuthLayout({
   children,
@@ -34,13 +35,7 @@ export default function AuthLayout({
             {...fadeIn}
           >
             Welcome to MePassword
-            <Image 
-              src="/mepassword.png" 
-              alt="MePassword Logo" 
-              width={36} 
-              height={36} 
-              className="inline-block"
-            />
+            <Logo/>
           </motion.div>
           <motion.p 
             className="text-xl mb-6 text-gray-600 dark:text-gray-300"
@@ -70,13 +65,7 @@ export default function AuthLayout({
                   {...fadeIn}
                 >
                   Welcome to MePassword
-                  <Image 
-                    src="/mepassword.png" 
-                    alt="MePassword Logo" 
-                    width={96} 
-                    height={96} 
-                    className="inline-block"
-                  />
+                  <Logo/>
                 </motion.div>
                 <motion.p 
                   className="text-2xl mb-12 text-gray-600 dark:text-gray-300"

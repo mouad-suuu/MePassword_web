@@ -1,11 +1,12 @@
 'use client';
 
 import { useAuth } from '@clerk/nextjs';
-import { UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '../ui/button';
 import { ReactNode } from 'react';
+import { UserProfileButton } from '../UserProfileButton';
+import { Logo } from '../Logo';
 
 interface TopNavProps {
   children?: ReactNode;
@@ -27,13 +28,7 @@ export function TopNav({ children }: TopNavProps) {
         <div className="flex justify-between items-center h-16">
           {/* Logo and Brand */}
           <div className="flex items-center space-x-3">
-            <Image
-              src="/mepassword.png"
-              alt="MePassword Logo"
-              width={32}
-              height={32}
-              className="w-8 h-8"
-            />
+           <Logo />
             <span className="text-xl font-bold text-gray-900 dark:text-white">MePassword</span>
           </div>
 
@@ -59,7 +54,7 @@ export function TopNav({ children }: TopNavProps) {
                     Dashboard
                   </Button>
                 </Link>
-                <UserButton afterSignOutUrl="/" />
+                <UserProfileButton />
               </>
             ) : (
               <>

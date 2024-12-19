@@ -1,7 +1,7 @@
 'use client';
 
-import { UserButton } from '@clerk/nextjs';
 import Link from 'next/link';
+import { UserProfileButton } from '../../components/UserProfileButton';
 
 export default function DashboardLayout({
   children,
@@ -22,7 +22,7 @@ export default function DashboardLayout({
             </div>
             <div className="flex items-center gap-4">
              
-              <UserButton afterSignOutUrl="/" />
+            <UserProfileButton />
             </div>
           </div>
         </div>

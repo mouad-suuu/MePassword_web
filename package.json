@@ -11,9 +11,9 @@
   },
   "dependencies": {
     "@clerk/backend": "^1.21.2",
-    "@clerk/nextjs": "^6.9.2",
+    "@clerk/nextjs": "^6.9.5",
     "@prisma/client": "^5.22.0",
-    "@radix-ui/react-slot": "^1.1.0",
+    "@radix-ui/react-slot": "^1.1.1",
     "@shadcn/ui": "^0.0.4",
     "@types/ua-parser-js": "^0.7.39",
     "@vercel/edge-config": "^1.4.0",

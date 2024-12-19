@@ -1,7 +1,7 @@
 "use client";
-import { UserButton } from "@clerk/nextjs";
 import Link from "next/link";
 import { LockIcon } from "lucide-react";
+import { UserProfileButton } from "./UserProfileButton";
 
 export default function TopBar() {
   return (
@@ -12,7 +12,7 @@ export default function TopBar() {
           <span className="font-bold text-xl text-black">MePassword</span>
         </Link>
         <div className="flex-1 flex justify-end">
-          <UserButton afterSignOutUrl="/sign-in" />
+        <UserProfileButton />
         </div>
       </div>
     </div>
