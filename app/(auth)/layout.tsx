@@ -5,7 +5,6 @@ import { RiLockPasswordLine, RiShieldLine } from 'react-icons/ri';
 import { TbWorldShare } from 'react-icons/tb';
 import { HiUserGroup } from 'react-icons/hi';
 import { CyberPattern } from '../../components/ui/CyberPattern';
-import Image from 'next/image';
 import { Logo } from '../../components/Logo';
 
 export default function AuthLayout({

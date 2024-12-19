@@ -2,7 +2,6 @@
 
 import { useAuth } from '@clerk/nextjs';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '../ui/button';
 import { ReactNode } from 'react';
 import { UserProfileButton } from '../UserProfileButton';
