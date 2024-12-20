@@ -14,7 +14,7 @@ export default function PrivacyPolicyPage() {
             <section className="mb-6">
               <h2 className="text-xl font-semibold mb-3">1. Introduction</h2>
               <p>
-                MePassword ("we", "our", or "us") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our password management service.
+                MePassword (&quot;we&quot;, &quot;our&quot;, or &quot;us&quot;) is committed to protecting your privacy. This Privacy Policy explains how we collect, use, and safeguard your personal information when you use our password management service.
               </p>
             </section>
 
