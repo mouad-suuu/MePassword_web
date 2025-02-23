@@ -1,7 +1,7 @@
-'use client';
+"use client";
 
-import Link from 'next/link';
-import { Button } from '../ui/button';
+import Link from "next/link";
+import { Button } from "../ui/button";
 
 export function HeroSection() {
   return (
@@ -12,17 +12,28 @@ export function HeroSection() {
           <span className="block text-blue-600">Made Simple</span>
         </h1>
         <p className="mt-6 text-xl text-gray-600 dark:text-gray-400 max-w-3xl mx-auto">
-          Open-source password manager that puts your security first.
-          Store, generate, and manage your passwords with complete privacy.
+          Open-source password manager that puts your security first. Store,
+          generate, and manage your passwords with complete privacy.
         </p>
         <div className="mt-10 flex justify-center gap-4">
-          <Link href="/sign-up">
+          <a
+            href="https://chromewebstore.google.com/detail/jggifpaolmnjgglibehjichnhhpbblcg?utm_source=item-share-cp"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
             <Button size="lg" className="bg-blue-600 hover:bg-blue-700">
               Get Started
             </Button>
-          </Link>
-          <Link href="#features">
-            <Button size="lg" variant="outline" className="border-gray-200 dark:border-gray-700">
+          </a>
+          <Link
+            href="#features"
+            className="text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white transition-colors"
+          >
+            <Button
+              size="lg"
+              variant="outline"
+              className="border-gray-200 dark:border-gray-700"
+            >
               Learn More
             </Button>
           </Link>
